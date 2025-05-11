@@ -40,6 +40,14 @@
         .back-button:hover {
             transform: translateX(-5px);
         }
+
+        /* Garantir que o componente seja visível */
+        #root {
+            min-height: 600px;
+            border: 1px solid #eee;
+            margin-bottom: 20px;
+            background-color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -56,7 +64,8 @@
             <p class="text-gray-600 mt-2">Visualize como um neurônio artificial cria um hiperplano para separar dados</p>
         </header>
         
-        <div id="root"></div>
+        <!-- Garantir que o elemento root esteja visível -->
+        <div id="root" class="p-4 rounded-lg"></div>
         
         <div class="mt-8 bg-white p-6 rounded-lg shadow-sm">
             <h2 class="text-xl font-bold mb-4">Teoria do Perceptron</h2>
@@ -235,13 +244,29 @@
           );
         };
 
-        // Renderizar o componente
-        document.addEventListener('DOMContentLoaded', function() {
-            ReactDOM.render(
+        // Tentar renderizar imediatamente, sem esperar pelo DOMContentLoaded
+        try {
+          ReactDOM.render(
+            <PerceptronVisualization />,
+            document.getElementById('root')
+          );
+          console.log("Componente renderizado com sucesso!");
+        } catch (e) {
+          console.error("Erro ao renderizar o componente:", e);
+          
+          // Tentar novamente após um pequeno atraso
+          setTimeout(() => {
+            try {
+              ReactDOM.render(
                 <PerceptronVisualization />,
                 document.getElementById('root')
-            );
-        });
+              );
+              console.log("Componente renderizado com sucesso após atraso!");
+            } catch (e) {
+              console.error("Erro ao renderizar o componente após atraso:", e);
+            }
+          }, 1000);
+        }
     </script>
 </body>
 </html>
