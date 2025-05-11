@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IFSC IA - Visualizações de Redes Neurais</title>
+    
+    <!-- React e ReactDOM -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    
+    <!-- Babel para JSX -->
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* Estilos adicionais se necessário */
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <!-- Seu componente -->
+    <script type="text/babel" src="perceptron_visualization.js"></script>
+    
+    <!-- Script de inicialização -->
+    <script type="text/babel">
+        // Renderizar o componente
+        ReactDOM.render(
+            <PerceptronVisualization />,
+            document.getElementById('root')
+        );
+    </script>
+</body>
+</html>
