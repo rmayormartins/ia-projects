@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Architecture - IFSC IA</title>
+    
+    <!-- React e ReactDOM -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    
+    <!-- Babel para JSX -->
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #f5f7fb;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            color: #4e54c8;
+            font-weight: 600;
+            margin-bottom: 20px;
+            transition: transform 0.2s ease;
+        }
+        
+        .back-button:hover {
+            transform: translateX(-5px);
+        }
+
+        /* Garantir que o componente seja visível */
+        #root {
+            min-height: 650px;
+            margin-bottom: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Voltar para Ferramentas
+        </a>
+        
+        <header class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Neural Network Architecture</h1>
+            <p class="text-gray-600 mt-2">Visualize como uma rede neural multicamadas funciona e aprende através de épocas de treinamento</p>
+        </header>
+        
+        <div id="root" class="p-4 rounded-lg"></div>
+        
+        <div class="mt-8 bg-white p-6 rounded-lg shadow-sm">
+            <h2 class="text-xl font-bold mb-4">Teoria das Redes Neurais Multicamadas</h2>
+            <p class="mb-3">As redes neurais multicamadas são compostas por camadas de neurônios artificiais interconectados. O sinal flui da camada de entrada através das camadas ocultas até a camada de saída.</p>
+            <p class="mb-3">Durante o treinamento, os pesos das conexões entre os neurônios são ajustados iterativamente para minimizar o erro entre a saída prevista e a desejada. Cada iteração completa através do conjunto de dados é chamada de "época".</p>
+            <p class="mb-3">No visualizador acima, a espessura e a cor das conexões representam o valor e o sinal dos pesos. Conexões vermelhas representam pesos positivos (excitadores), enquanto conexões azuis representam pesos negativos (inibidores).</p>
+            <p class="mb-3">O controle deslizante de épocas permite simular o processo de aprendizado, onde os pesos vão se fortalecendo e se especializando com o treinamento. Os caminhos destacados em verde mostram as conexões com maiores pesos, que são as mais influentes para a rede.</p>
+        </div>
+        
+        <footer class="mt-12 text-center text-gray-600 text-sm">
+            <p>Desenvolvido por Ramon Mayor Martins - IFSC 2025</p>
+            <p class="mt-1">Instituto Federal de Santa Catarina - Departamento de Computação</p>
+        </footer>
+    </div>
+    
+    <script type="text/babel">
+        const NeuralNetworkArchitecture = () => {
+          // Estado da rede neural
+          const [layers, setLayers] = React.useState([4, 6, 5, 2]);
+          const [epochs, setEpochs] = React.useState(1);
+          const [maxEpochs, setMaxEpochs] = React.useState(100);
+          const [showWeights, setShowWeights] = React.useState(false);
+          const [highlightThreshold, setHighlightThreshold] = React.useState(0.7);
+          const [architecture, setArchitecture] = React.useState("4-6-5-2");
+          const [isLearning, setIsLearning] = React.useState(false);
+          const [learningInterval, setLearningInterval] = React.useState(null);
+          const [connections, setConnections] = React.useState([]);
+          
+          // Referência para animação
+          const requestRef = React.useRef();
+          
+          // Gerar pesos aleatórios para demonstração
+          const generateRandomWeights = (fromSize, toSize, epoch = 1) => {
+            const weights = [];
+            for (let i = 0; i < fromSize; i++) {
+              for (let j = 0; j < toSize; j++) {
+                // Simular convergência gradual dos pesos com o aumento das épocas
+                // Alguns pesos ficam mais fortes, outros mais fracos
+                const initialWeight = Math.random() * 2 - 1;
+                const learnRate = 0.005;
+                const noise = Math.random() * 0.1 - 0.05;
+                const direction = Math.random() > 0.5 ? 1 : -1;
+                const target = direction * (0.5 + Math.random() * 1.5);
+                
+                // Peso vai gradualmente convergindo para o alvo com ruído
+                const weight = initialWeight + (target - initialWeight) * (1 - Math.exp(-learnRate * epoch)) + noise;
+                
+                weights.push({
+                  from: i,
+                  to: j,
+                  weight: parseFloat(weight.toFixed(2)),
+                  strength: Math.abs(parseFloat(weight.toFixed(2)))
+                });
+              }
+            }
+            return weights;
+          };
+          
+          // Gerar conexões entre camadas
+          const generateConnections = (epoch = 1) => {
+            let allConnections = [];
+            for (let l = 0; l < layers.length - 1; l++) {
+              const connections = generateRandomWeights(layers[l], layers[l+1], epoch);
+              allConnections.push({
+                fromLayer: l,
+                toLayer: l+1,
+                connections
+              });
+            }
+            return allConnections;
+          };
+          
+          // Gerar conexões iniciais
+          React.useEffect(() => {
+            const initialConnections = generateConnections(epochs);
+            setConnections(initialConnections);
+          }, []);
+          
+          // Atualizar conexões quando a época muda
+          React.useEffect(() => {
+            if (!isLearning) {
+              const newConnections = generateConnections(epochs);
+              setConnections(newConnections);
+            }
+          }, [epochs, isLearning]);
+          
+          // Atualizar rede quando a arquitetura muda
+          React.useEffect(() => {
+            if (architecture) {
+              try {
+                const newLayers = architecture.split('-').map(num => parseInt(num, 10));
+                if (newLayers.every(num => !isNaN(num) && num > 0 && num <= 10)) {
+                  setLayers(newLayers);
+                  const newConnections = generateConnections(epochs);
+                  setConnections(newConnections);
+                }
+              } catch (error) {
+                console.error("Formato de arquitetura inválido");
+              }
+            }
+          }, [architecture]);
+          
+          // Iniciar/parar animação de aprendizado
+          const toggleLearning = () => {
+            if (isLearning) {
+              // Parar simulação
+              clearInterval(learningInterval);
+              setLearningInterval(null);
+              setIsLearning(false);
+            } else {
+              // Iniciar simulação
+              setEpochs(1);
+              const interval = setInterval(() => {
+                setEpochs(prev => {
+                  if (prev >= maxEpochs) {
+                    clearInterval(interval);
+                    setLearningInterval(null);
+                    setIsLearning(false);
+                    return maxEpochs;
+                  }
+                  return prev + 1;
+                });
+              }, 100);
+              setLearningInterval(interval);
+              setIsLearning(true);
+            }
+          };
+          
+          // Limpar intervalo ao desmontar componente
+          React.useEffect(() => {
+            return () => {
+              if (learningInterval) {
+                clearInterval(learningInterval);
+              }
+            };
+          }, [learningInterval]);
+          
+          // Reiniciar rede
+          const resetNetwork = () => {
+            setEpochs(1);
+            if (isLearning) {
+              clearInterval(learningInterval);
+              setLearningInterval(null);
+              setIsLearning(false);
+            }
+            const newConnections = generateConnections(1);
+            setConnections(newConnections);
+          };
+          
+          // Calcular dimensões para desenho
+          const getNetworkDimensions = () => {
+            const width = 600;
+            const height = 400;
+            const layerSpacing = width / (layers.length + 1);
+            const maxNeurons = Math.max(...layers);
+            const neuronRadius = 15;
+            const neuronSpacing = height / (maxNeurons + 1);
+            
+            return {
+              width,
+              height,
+              layerSpacing,
+              neuronSpacing,
+              neuronRadius
+            };
+          };
+          
+          const { width, height, layerSpacing, neuronSpacing, neuronRadius } = getNetworkDimensions();
+          
+          // Calcular posição X de uma camada
+          const getLayerX = (layerIndex) => {
+            return (layerIndex + 1) * layerSpacing;
+          };
+          
+          // Calcular posição Y de um neurônio em uma camada
+          const getNeuronY = (layerIndex, neuronIndex) => {
+            const layerSize = layers[layerIndex];
+            const totalLayerHeight = neuronSpacing * (layerSize - 1);
+            const startY = (height - totalLayerHeight) / 2;
+            return startY + (neuronIndex * neuronSpacing);
+          };
+          
+          // Encontrar conexões com maiores pesos para destacar
+          const findStrongestConnections = () => {
+            if (!connections || connections.length === 0) return [];
+            
+            const strongPaths = [];
+            
+            // Para cada neurônio na camada de saída
+            for (let outputNeuron = 0; outputNeuron < layers[layers.length - 1]; outputNeuron++) {
+              let currentLayer = layers.length - 1;
+              let currentNeuron = outputNeuron;
+              const path = [];
+              
+              // Percorrer da camada de saída até a camada de entrada
+              while (currentLayer > 0) {
+                // Encontrar a conexão com maior peso para o neurônio atual
+                const prevLayerConnections = connections[currentLayer - 1];
+                if (!prevLayerConnections) continue;
+                
+                let maxWeight = -Infinity;
+                let strongestFrom = 0;
+                
+                prevLayerConnections.connections.forEach(conn => {
+                  if (conn.to === currentNeuron && conn.strength > maxWeight) {
+                    maxWeight = conn.strength;
+                    strongestFrom = conn.from;
+                  }
+                });
+                
+                // Adicionar conexão ao caminho se for forte o suficiente
+                if (maxWeight > highlightThreshold * (epochs / maxEpochs)) {
+                  path.push({
+                    fromLayer: currentLayer - 1,
+                    fromNeuron: strongestFrom,
+                    toLayer: currentLayer,
+                    toNeuron: currentNeuron,
+                    weight: maxWeight
+                  });
+                }
+                
+                // Mover para a camada anterior
+                currentLayer--;
+                currentNeuron = strongestFrom;
+              }
+              
+              if (path.length > 0) {
+                strongPaths.push(path);
+              }
+            }
+            
+            return strongPaths;
+          };
+          
+          const strongestPaths = findStrongestConnections();
+          
+          // Verificar se uma conexão está em um caminho destacado
+          const isConnectionHighlighted = (fromLayer, fromNeuron, toLayer, toNeuron) => {
+            for (const path of strongestPaths) {
+              for (const segment of path) {
+                if (
+                  segment.fromLayer === fromLayer &&
+                  segment.fromNeuron === fromNeuron &&
+                  segment.toLayer === toLayer &&
+                  segment.toNeuron === toNeuron
+                ) {
+                  return true;
+                }
+              }
+            }
+            return false;
+          };
+          
+          // Determinar cor da conexão com base no peso
+          const getConnectionColor = (weight) => {
+            if (weight > 0) {
+              return `rgba(255, 0, 0, ${Math.min(Math.abs(weight), 1)})`;
+            } else {
+              return `rgba(0, 0, 255, ${Math.min(Math.abs(weight), 1)})`;
+            }
+          };
+          
+          // Determinar largura da conexão com base no peso e época
+          const getConnectionWidth = (strength) => {
+            // Aumentar a largura máxima com base na época para simular fortalecimento
+            const epochFactor = Math.log(epochs + 1) / Math.log(maxEpochs + 1);
+            const baseWidth = Math.max(0.5, strength * 3);
+            return baseWidth * (1 + epochFactor);
+          };
+          
+          return (
+            <div className="flex flex-col items-center p-4">
+              <h2 className="text-xl font-bold mb-2">Rede Neural Multicamadas</h2>
+              
+              <div className="w-full mb-6">
+                <div className="flex flex-wrap gap-4 mb-4 justify-center">
+                  <div className="flex items-center">
+                    <label className="mr-2 text-sm font-medium text-gray-700">Arquitetura:</label>
+                    <input 
+                      type="text" 
+                      value={architecture}
+                      onChange={(e) => setArchitecture(e.target.value)}
+                      className="border rounded px-2 py-1 w-24 text-center"
+                      placeholder="4-6-5-2"
+                      disabled={isLearning}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <label className="mr-2 text-sm font-medium text-gray-700">Épocas Máx:</label>
+                    <input 
+                      type="number" 
+                      value={maxEpochs}
+                      onChange={(e) => setMaxEpochs(parseInt(e.target.value))}
+                      className="border rounded px-2 py-1 w-16 text-center"
+                      min="1"
+                      max="1000"
+                      disabled={isLearning}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={showWeights}
+                      onChange={() => setShowWeights(!showWeights)}
+                      className="mr-1"
+                    />
+                    <label className="text-sm text-gray-700">Mostrar Pesos</label>
+                  </div>
+                </div>
+                
+                <div className="flex justify-center space-x-4 mb-4">
+                  <button
+                    className={`px-4 py-2 rounded font-medium transition ${isLearning ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                    onClick={toggleLearning}
+                  >
+                    {isLearning ? 'Parar Aprendizado' : 'Iniciar Aprendizado'}
+                  </button>
+                  
+                  <button
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 font-medium transition"
+                    onClick={resetNetwork}
+                    disabled={isLearning}
+                  >
+                    Reiniciar Rede
+                  </button>
+                </div>
+                
+                <div className="mb-2 flex items-center">
+                  <span className="text-sm font-medium text-gray-700 mr-2">Época: {epochs} / {maxEpochs}</span>
+                  <div className="w-full">
+                    <input
+                      type="range"
+                      min="1"
+                      max={maxEpochs}
+                      value={epochs}
+                      onChange={(e) => setEpochs(parseInt(e.target.value))}
+                      className="w-full"
+                      disabled={isLearning}
+                    />
+                  </div>
+                </div>
+                
+                <div className="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-4">
+                  <div 
+                    className="absolute top-0 left-0 h-full bg-blue-500 transition-all"
+                    style={{ width: `${(epochs / maxEpochs) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg shadow-sm mb-4 w-full overflow-auto">
+                <svg width={width} height={height} className="mx-auto">
+                  {/* Desenhar conexões entre camadas */}
+                  {connections.map((layerConnection, layerIndex) => (
+                    <g key={`layer-${layerIndex}`}>
+                      {layerConnection.connections.map((conn, connIndex) => {
+                        const fromX = getLayerX(layerConnection.fromLayer);
+                        const fromY = getNeuronY(layerConnection.fromLayer, conn.from);
+                        const toX = getLayerX(layerConnection.toLayer);
+                        const toY = getNeuronY(layerConnection.toLayer, conn.to);
+                        
+                        const highlighted = isConnectionHighlighted(
+                          layerConnection.fromLayer,
+                          conn.from,
+                          layerConnection.toLayer,
+                          conn.to
+                        );
+                        
+                        return (
+                          <g key={`conn-${layerIndex}-${connIndex}`}>
+                            <line
+                              x1={fromX}
+                              y1={fromY}
+                              x2={toX}
+                              y2={toY}
+                              stroke={highlighted ? "#00FF00" : getConnectionColor(conn.weight)}
+                              strokeWidth={highlighted ? 3 + getConnectionWidth(conn.strength) : getConnectionWidth(conn.strength)}
+                              opacity={highlighted ? 1 : (showWeights ? 0.8 : 0.2) + (conn.strength * 0.5)}
+                            />
+                            
+                            {showWeights && (
+                              <text
+                                x={(fromX + toX) / 2}
+                                y={(fromY + toY) / 2 - 5}
+                                textAnchor="middle"
+                                fontSize="10"
+                                fill={highlighted ? "#00AA00" : "#666"}
+                              >
+                                {conn.weight.toFixed(2)}
+                              </text>
+                            )}
+                          </g>
+                        );
+                      })}
+                    </g>
+                  ))}
+                  
+                  {/* Desenhar camadas e neurônios */}
+                  {layers.map((layerSize, layerIndex) => (
+                    <g key={`layer-${layerIndex}`}>
+                      {/* Rótulo da camada */}
+                      <text
+                        x={getLayerX(layerIndex)}
+                        y={20}
+                        textAnchor="middle"
+                        fontSize="12"
+                        fontWeight="bold"
+                      >
+                        {layerIndex === 0 
+                          ? "Entrada" 
+                          : layerIndex === layers.length - 1 
+                            ? "Saída" 
+                            : `Oculta ${layerIndex}`}
+                      </text>
+                      
+                      {/* Neurônios da camada */}
+                      {Array.from({ length: layerSize }).map((_, neuronIndex) => {
+                        const cx = getLayerX(layerIndex);
+                        const cy = getNeuronY(layerIndex, neuronIndex);
+                        
+                        // Verificar se este neurônio está em um caminho destacado
+                        const isHighlighted = strongestPaths.some(path => 
+                          path.some(segment => 
+                            (segment.fromLayer === layerIndex && segment.fromNeuron === neuronIndex) ||
+                            (segment.toLayer === layerIndex && segment.toNeuron === neuronIndex)
+                          )
+                        );
+                        
+                        return (
+                          <g key={`neuron-${layerIndex}-${neuronIndex}`}>
+                            <circle
+                              cx={cx}
+                              cy={cy}
+                              r={neuronRadius}
+                              fill={isHighlighted ? "#00FF00" : "#fff"}
+                              stroke={isHighlighted ? "#008800" : "#333"}
+                              strokeWidth={isHighlighted ? 2 : 1}
+                            />
+                            
+                            {/* Rótulo do neurônio */}
+                            <text
+                              x={cx}
+                              y={cy + 5}
+                              textAnchor="middle"
+                              fontSize="12"
+                              fill="#333"
+                            >
+                              {layerIndex === 0 
+                                ? `x${neuronIndex+1}` 
+                                : layerIndex === layers.length - 1 
+                                  ? `y${neuronIndex+1}` 
+                                  : `h${neuronIndex+1}`}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </g>
+                  ))}
+                </svg>
+              </div>
+              
+              <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <h3 className="font-semibold mb-2">Legenda:</h3>
+                  <ul className="text-sm space-y-2">
+                    <li className="flex items-center">
+                      <div className="w-4 h-2 bg-red-500 mr-2"></div>
+                      <span>Peso positivo (excitador)</span>
+                    </li>
+                    <li className="flex items-center">
+                      <div className="w-4 h-2 bg-blue-500 mr-2"></div>
+                      <span>Peso negativo (inibidor)</span>
+                    </li>
+                    <li className="flex items-center">
+                      <div className="w-4 h-2 bg-green-500 mr-2"></div>
+                      <span>Caminho com maior influência</span>
+                    </li>
+                    <li className="flex items-center">
+                      <div className="w-4 h-2 mr-2" style={{background: "linear-gradient(90deg, rgba(0,0,0,0.1), rgba(0,0,0,0.8)"}}></div>
+                      <span>Espessura = Força do peso</span>
+                    </li>
+                  </ul>
+                </div>
+                
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <h3 className="font-semibold mb-2">Informações:</h3>
+                  <ul className="text-sm space-y-2">
+                    <li>
+                      <span className="font-medium">Arquitetura:</span> {layers.join("-")}
+                    </li>
+                    <li>
+                      <span className="font-medium">Total de neurônios:</span> {layers.reduce((a, b) => a + b, 0)}
+                    </li>
+                    <li>
+                      <span className="font-medium">Total de conexões:</span> {connections.reduce((sum, layer) => sum + layer.connections.length, 0)}
+                    </li>
+                    <li>
+                      <span className="font-medium">Época atual:</span> {epochs} de {maxEpochs}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="text-sm text-gray-600 mt-2 text-center">
+                <p>Ajuste a época para simular o processo de aprendizado da rede neural.</p>
+                <p>As conexões em verde representam os caminhos com maior influência na decisão final.</p>
+              </div>
+            </div>
+          );
+        };
+
+        // Renderizar o componente
+        try {
+          ReactDOM.render(
+            <NeuralNetworkArchitecture />,
+            document.getElementById('root')
+          );
+          console.log("Componente da rede neural renderizado com sucesso!");
+        } catch (e) {
+          console.error("Erro ao renderizar o componente:", e);
+          
+          // Tentar novamente após um pequeno atraso
+          setTimeout(() => {
+            try {
+              ReactDOM.render(
+                <NeuralNetworkArchitecture />,
+                document.getElementById('root')
+              );
+              console.log("Componente da rede neural renderizado com sucesso após atraso!");
+            } catch (e) {
+              console.error("Erro ao renderizar o componente após atraso:", e);
+            }
+          }, 1000);
+        }
+    </script>
+</body>
+</html>
