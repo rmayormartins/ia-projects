@@ -73,7 +73,7 @@
             <p class="mb-3">As redes neurais multicamadas são compostas por camadas de neurônios artificiais interconectados. O sinal flui da camada de entrada através das camadas ocultas até a camada de saída.</p>
             <p class="mb-3">Durante o treinamento, os pesos das conexões entre os neurônios são ajustados iterativamente para minimizar o erro entre a saída prevista e a desejada. Cada iteração completa através do conjunto de dados é chamada de "época".</p>
             <p class="mb-3">No visualizador acima, a espessura e a cor das conexões representam o valor e o sinal dos pesos. Conexões vermelhas representam pesos positivos (excitadores), enquanto conexões azuis representam pesos negativos (inibidores).</p>
-            <p class="mb-3">O controle deslizante de épocas permite simular o processo de aprendizado, onde os pesos vão se fortalecendo e se especializando com o treinamento. Os caminhos destacados em verde mostram as conexões com maiores pesos, que são as mais influentes para a rede.</p>
+            <p class="mb-3">O controle deslizante de épocas permite simular o processo de aprendizado, onde os pesos vão se fortalecendo e se especializando com o treinamento. Os caminhos destacados em verde mostram as conexões mais influentes para a rede, levando à ativação de um neurônio de saída específico.</p>
         </div>
         
         <footer class="mt-12 text-center text-gray-600 text-sm">
@@ -94,6 +94,7 @@
           const [isLearning, setIsLearning] = React.useState(false);
           const [learningInterval, setLearningInterval] = React.useState(null);
           const [connections, setConnections] = React.useState([]);
+          const [activeOutputNeuron, setActiveOutputNeuron] = React.useState(0); // Novo: qual saída está ativa
           
           // Referência para animação
           const requestRef = React.useRef();
@@ -143,6 +144,12 @@
           React.useEffect(() => {
             const initialConnections = generateConnections(epochs);
             setConnections(initialConnections);
+            
+            // Determinar neurônio de saída ativo aleatoriamente
+            if (layers[layers.length - 1] > 0) {
+              const newActiveNeuron = Math.floor(Math.random() * layers[layers.length - 1]);
+              setActiveOutputNeuron(newActiveNeuron);
+            }
           }, []);
           
           // Atualizar conexões quando a época muda
@@ -150,6 +157,12 @@
             if (!isLearning) {
               const newConnections = generateConnections(epochs);
               setConnections(newConnections);
+              
+              // Alternar neurônio de saída ativo periodicamente
+              // Mas manter consistente para mesma época
+              const epochSeed = epochs * 137; // Número primo para pseudoaleatoriedade
+              const newActiveNeuron = epochSeed % layers[layers.length - 1];
+              setActiveOutputNeuron(newActiveNeuron);
             }
           }, [epochs, isLearning]);
           
@@ -162,6 +175,11 @@
                   setLayers(newLayers);
                   const newConnections = generateConnections(epochs);
                   setConnections(newConnections);
+                  
+                  // Redefinir neurônio de saída ativo se necessário
+                  if (activeOutputNeuron >= newLayers[newLayers.length - 1]) {
+                    setActiveOutputNeuron(0);
+                  }
                 }
               } catch (error) {
                 console.error("Formato de arquitetura inválido");
@@ -214,6 +232,10 @@
             }
             const newConnections = generateConnections(1);
             setConnections(newConnections);
+            
+            // Redefinir neurônio de saída ativo
+            const newActiveNeuron = Math.floor(Math.random() * layers[layers.length - 1]);
+            setActiveOutputNeuron(newActiveNeuron);
           };
           
           // Calcular dimensões para desenho
@@ -249,53 +271,53 @@
             return startY + (neuronIndex * neuronSpacing);
           };
           
-          // Encontrar conexões com maiores pesos para destacar
+          // Encontrar conexões com maiores pesos para destacar até o neurônio de saída ativo
           const findStrongestConnections = () => {
             if (!connections || connections.length === 0) return [];
             
             const strongPaths = [];
             
-            // Para cada neurônio na camada de saída
-            for (let outputNeuron = 0; outputNeuron < layers[layers.length - 1]; outputNeuron++) {
-              let currentLayer = layers.length - 1;
-              let currentNeuron = outputNeuron;
-              const path = [];
+            // Apenas para o neurônio de saída ativo
+            const outputNeuron = activeOutputNeuron;
+            
+            let currentLayer = layers.length - 1;
+            let currentNeuron = outputNeuron;
+            const path = [];
+            
+            // Percorrer da camada de saída até a camada de entrada
+            while (currentLayer > 0) {
+              // Encontrar a conexão com maior peso para o neurônio atual
+              const prevLayerConnections = connections[currentLayer - 1];
+              if (!prevLayerConnections) continue;
               
-              // Percorrer da camada de saída até a camada de entrada
-              while (currentLayer > 0) {
-                // Encontrar a conexão com maior peso para o neurônio atual
-                const prevLayerConnections = connections[currentLayer - 1];
-                if (!prevLayerConnections) continue;
-                
-                let maxWeight = -Infinity;
-                let strongestFrom = 0;
-                
-                prevLayerConnections.connections.forEach(conn => {
-                  if (conn.to === currentNeuron && conn.strength > maxWeight) {
-                    maxWeight = conn.strength;
-                    strongestFrom = conn.from;
-                  }
-                });
-                
-                // Adicionar conexão ao caminho se for forte o suficiente
-                if (maxWeight > highlightThreshold * (epochs / maxEpochs)) {
-                  path.push({
-                    fromLayer: currentLayer - 1,
-                    fromNeuron: strongestFrom,
-                    toLayer: currentLayer,
-                    toNeuron: currentNeuron,
-                    weight: maxWeight
-                  });
+              let maxWeight = -Infinity;
+              let strongestFrom = 0;
+              
+              prevLayerConnections.connections.forEach(conn => {
+                if (conn.to === currentNeuron && conn.strength > maxWeight) {
+                  maxWeight = conn.strength;
+                  strongestFrom = conn.from;
                 }
-                
-                // Mover para a camada anterior
-                currentLayer--;
-                currentNeuron = strongestFrom;
+              });
+              
+              // Adicionar conexão ao caminho se for forte o suficiente
+              if (maxWeight > highlightThreshold * (epochs / maxEpochs)) {
+                path.push({
+                  fromLayer: currentLayer - 1,
+                  fromNeuron: strongestFrom,
+                  toLayer: currentLayer,
+                  toNeuron: currentNeuron,
+                  weight: maxWeight
+                });
               }
               
-              if (path.length > 0) {
-                strongPaths.push(path);
-              }
+              // Mover para a camada anterior
+              currentLayer--;
+              currentNeuron = strongestFrom;
+            }
+            
+            if (path.length > 0) {
+              strongPaths.push(path);
             }
             
             return strongPaths;
@@ -335,6 +357,22 @@
             const epochFactor = Math.log(epochs + 1) / Math.log(maxEpochs + 1);
             const baseWidth = Math.max(0.5, strength * 3);
             return baseWidth * (1 + epochFactor);
+          };
+          
+          // Verificar se um neurônio está no caminho destacado
+          const isNeuronHighlighted = (layerIndex, neuronIndex) => {
+            // Neurônio de saída ativo sempre destacado
+            if (layerIndex === layers.length - 1 && neuronIndex === activeOutputNeuron) {
+              return true;
+            }
+            
+            // Verificar se está em qualquer caminho destacado
+            return strongestPaths.some(path => 
+              path.some(segment => 
+                (segment.fromLayer === layerIndex && segment.fromNeuron === neuronIndex) ||
+                (segment.toLayer === layerIndex && segment.toNeuron === neuronIndex)
+              )
+            );
           };
           
           return (
@@ -437,6 +475,12 @@
                           conn.to
                         );
                         
+                        // Atenuar conexões não relacionadas ao neurônio de saída ativo
+                        const outputLayer = layers.length - 1;
+                        const isOutputConnection = layerConnection.toLayer === outputLayer;
+                        const isToActiveOutput = isOutputConnection && conn.to === activeOutputNeuron;
+                        const isToInactiveOutput = isOutputConnection && conn.to !== activeOutputNeuron;
+                        
                         return (
                           <g key={`conn-${layerIndex}-${connIndex}`}>
                             <line
@@ -446,7 +490,11 @@
                               y2={toY}
                               stroke={highlighted ? "#00FF00" : getConnectionColor(conn.weight)}
                               strokeWidth={highlighted ? 3 + getConnectionWidth(conn.strength) : getConnectionWidth(conn.strength)}
-                              opacity={highlighted ? 1 : (showWeights ? 0.8 : 0.2) + (conn.strength * 0.5)}
+                              opacity={
+                                highlighted ? 1 : 
+                                isToInactiveOutput ? 0.1 : // Atenuar conexões para saídas inativas
+                                (showWeights ? 0.8 : 0.2) + (conn.strength * 0.5)
+                              }
                             />
                             
                             {showWeights && (
@@ -456,6 +504,7 @@
                                 textAnchor="middle"
                                 fontSize="10"
                                 fill={highlighted ? "#00AA00" : "#666"}
+                                opacity={isToInactiveOutput ? 0.5 : 1}
                               >
                                 {conn.weight.toFixed(2)}
                               </text>
@@ -490,12 +539,12 @@
                         const cy = getNeuronY(layerIndex, neuronIndex);
                         
                         // Verificar se este neurônio está em um caminho destacado
-                        const isHighlighted = strongestPaths.some(path => 
-                          path.some(segment => 
-                            (segment.fromLayer === layerIndex && segment.fromNeuron === neuronIndex) ||
-                            (segment.toLayer === layerIndex && segment.toNeuron === neuronIndex)
-                          )
-                        );
+                        const isHighlighted = isNeuronHighlighted(layerIndex, neuronIndex);
+                        
+                        // Verificar se é um neurônio de saída
+                        const isOutputNeuron = layerIndex === layers.length - 1;
+                        const isActiveOutput = isOutputNeuron && neuronIndex === activeOutputNeuron;
+                        const isInactiveOutput = isOutputNeuron && neuronIndex !== activeOutputNeuron;
                         
                         return (
                           <g key={`neuron-${layerIndex}-${neuronIndex}`}>
@@ -503,9 +552,20 @@
                               cx={cx}
                               cy={cy}
                               r={neuronRadius}
-                              fill={isHighlighted ? "#00FF00" : "#fff"}
-                              stroke={isHighlighted ? "#008800" : "#333"}
-                              strokeWidth={isHighlighted ? 2 : 1}
+                              fill={
+                                isActiveOutput ? "#00FF00" : // Saída ativa - verde
+                                isHighlighted ? "#CCFFCC" : // Neurônios no caminho - verde claro
+                                isInactiveOutput ? "#f5f5f5" : // Saídas inativas - cinza claro
+                                "#fff" // Outros neurônios - branco
+                              }
+                              stroke={
+                                isActiveOutput ? "#008800" : // Saída ativa - verde escuro
+                                isHighlighted ? "#00AA00" : // Neurônios no caminho - verde médio
+                                isInactiveOutput ? "#ddd" : // Saídas inativas - cinza
+                                "#333" // Outros neurônios - cinza escuro
+                              }
+                              strokeWidth={isActiveOutput ? 2 : isHighlighted ? 1.5 : 1}
+                              opacity={isInactiveOutput ? 0.7 : 1}
                             />
                             
                             {/* Rótulo do neurônio */}
@@ -514,7 +574,8 @@
                               y={cy + 5}
                               textAnchor="middle"
                               fontSize="12"
-                              fill="#333"
+                              fill={isActiveOutput ? "#008800" : isHighlighted ? "#00AA00" : "#333"}
+                              fontWeight={isActiveOutput ? "bold" : "normal"}
                             >
                               {layerIndex === 0 
                                 ? `x${neuronIndex+1}` 
@@ -527,6 +588,20 @@
                       })}
                     </g>
                   ))}
+                  
+                  {/* Label para neurônio de saída ativo */}
+                  {layers.length > 0 && (
+                    <text
+                      x={getLayerX(layers.length - 1)}
+                      y={getNeuronY(layers.length - 1, activeOutputNeuron) - neuronRadius - 10}
+                      textAnchor="middle"
+                      fontSize="12"
+                      fill="#008800"
+                      fontWeight="bold"
+                    >
+                      Ativo
+                    </text>
+                  )}
                 </svg>
               </div>
               
@@ -545,6 +620,10 @@
                     <li className="flex items-center">
                       <div className="w-4 h-2 bg-green-500 mr-2"></div>
                       <span>Caminho com maior influência</span>
+                    </li>
+                    <li className="flex items-center">
+                      <div className="w-4 h-4 rounded-full bg-green-500 mr-2"></div>
+                      <span>Neurônio de saída ativo</span>
                     </li>
                     <li className="flex items-center">
                       <div className="w-4 h-2 mr-2" style={{background: "linear-gradient(90deg, rgba(0,0,0,0.1), rgba(0,0,0,0.8)"}}></div>
@@ -568,19 +647,22 @@
                     <li>
                       <span className="font-medium">Época atual:</span> {epochs} de {maxEpochs}
                     </li>
+                    <li>
+                      <span className="font-medium">Saída ativa:</span> y{activeOutputNeuron+1}
+                    </li>
                   </ul>
                 </div>
               </div>
               
               <div className="text-sm text-gray-600 mt-2 text-center">
                 <p>Ajuste a época para simular o processo de aprendizado da rede neural.</p>
-                <p>As conexões em verde representam os caminhos com maior influência na decisão final.</p>
+                <p>O neurônio de saída verde representa a classe prevista, e o caminho verde mostra as conexões mais influentes para essa decisão.</p>
               </div>
             </div>
           );
         };
 
-        // Renderizar o componente
+       // Renderizar o componente
         try {
           ReactDOM.render(
             <NeuralNetworkArchitecture />,
