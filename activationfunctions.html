@@ -1,1 +1,717 @@
-teste
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funções de Ativação - IFSC IA</title>
+    
+    <!-- React e ReactDOM -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    
+    <!-- Babel para JSX -->
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    
+    <!-- Plotly.js para gráficos -->
+    <script src="https://cdn.plot.ly/plotly-2.12.1.min.js"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, sans-serif;
+            background-color: #f5f7fb;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            color: blue;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-decoration: none;
+        }
+        
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .button {
+            padding: 8px 16px;
+            background: #4c6ef5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .button:hover {
+            background: #364fc7;
+        }
+        
+        .button:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+        }
+        
+        .button-selected {
+            background: #364fc7;
+            border: 2px solid #1a1a1a;
+        }
+        
+        .input-control {
+            display: block;
+            margin-bottom: 16px;
+        }
+        
+        .input-control label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .input-control input[type="range"] {
+            width: 100%;
+        }
+        
+        .neuron-canvas {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            width: 100%;
+            height: auto;
+        }
+        
+        .plot-container {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .neuron-output {
+            background-color: #e9ecef;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 16px;
+            font-size: 18px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">
+            ← Voltar para Ferramentas
+        </a>
+        
+        <h1>Funções de Ativação em Redes Neurais</h1>
+        <p>Visualize e compare diferentes funções de ativação e seu efeito no comportamento de um neurônio</p>
+        
+        <div id="app-container" class="card"></div>
+        
+        <div class="card">
+            <h2>Teoria das Funções de Ativação</h2>
+            <p>As funções de ativação são componentes críticos em redes neurais que introduzem não-linearidade ao modelo. Sem elas, uma rede neural seria apenas uma combinação de transformações lineares, incapaz de aprender padrões complexos.</p>
+            <p>Cada função de ativação tem características distintas que a tornam mais adequada para diferentes problemas:</p>
+            <ul>
+                <li><strong>Sigmoid:</strong> Produz saídas entre 0 e 1, útil para problemas binários. No entanto, sofre do problema de "vanishing gradient" para entradas muito grandes ou pequenas.</li>
+                <li><strong>Tanh:</strong> Similar à sigmoid, mas produz saídas entre -1 e 1. Geralmente tem um gradiente mais forte que a sigmoid.</li>
+                <li><strong>ReLU (Unidade Linear Retificada):</strong> Retorna 0 para entradas negativas e a própria entrada para valores positivos. É computacionalmente eficiente e ajuda a mitigar o problema do vanishing gradient, mas pode sofrer do "dying ReLU problem".</li>
+                <li><strong>Leaky ReLU:</strong> Uma variação do ReLU que permite um pequeno gradiente para entradas negativas, ajudando a evitar o "dying ReLU problem".</li>
+                <li><strong>ELU (Exponential Linear Unit):</strong> Combina os benefícios do ReLU com uma suave transição para valores negativos.</li>
+                <li><strong>Linear:</strong> Não aplica transformação não-linear, simplesmente retorna a entrada. Útil para demonstrar a necessidade de não-linearidade em redes neurais.</li>
+            </ul>
+            <p>Use esta ferramenta para explorar como diferentes funções de ativação transformam a entrada de um neurônio e afetam sua capacidade de modelar diferentes tipos de relações.</p>
+        </div>
+        
+        <footer style="text-align: center; margin-top: 40px; color: #6c757d;">
+            <p>Desenvolvido por Ramon Mayor Martins - IFSC 2025</p>
+            <p>Instituto Federal de Santa Catarina - Área de Telecomunicações</p>
+        </footer>
+    </div>
+    
+    <script type="text/babel">
+        // Componente principal
+        const ActivationFunctionsDemo = () => {
+            // Estados
+            const [activeFunction, setActiveFunction] = React.useState("sigmoid");
+            const [input1, setInput1] = React.useState(0.5);
+            const [input2, setInput2] = React.useState(0.5);
+            const [weight1, setWeight1] = React.useState(1.0);
+            const [weight2, setWeight2] = React.useState(1.0);
+            const [bias, setBias] = React.useState(0);
+            const [comparisonMode, setComparisonMode] = React.useState(false);
+            
+            // Refs para canvas e elementos de plot
+            const neuronCanvasRef = React.useRef(null);
+            const functionPlotRef = React.useRef(null);
+            const surfacePlotRef = React.useRef(null);
+            
+            // Lista de funções de ativação disponíveis
+            const activationFunctions = {
+                sigmoid: {
+                    name: "Sigmoid",
+                    color: "#ff7043",
+                    fn: (x) => 1 / (1 + Math.exp(-x)),
+                    description: "Mapeia qualquer número para o intervalo (0, 1). Útil para saídas que representam probabilidades."
+                },
+                tanh: {
+                    name: "Tanh",
+                    color: "#5c6bc0",
+                    fn: (x) => Math.tanh(x),
+                    description: "Similar à sigmoid, mas com saída no intervalo (-1, 1). Geralmente tem um gradiente mais forte."
+                },
+                relu: {
+                    name: "ReLU",
+                    color: "#66bb6a",
+                    fn: (x) => Math.max(0, x),
+                    description: "Unidade Linear Retificada. Simples e eficaz, mas pode 'morrer' (gradient = 0) para entradas negativas."
+                },
+                leakyrelu: {
+                    name: "Leaky ReLU",
+                    color: "#26a69a",
+                    fn: (x) => x > 0 ? x : 0.1 * x,
+                    description: "Variação do ReLU que permite um pequeno gradiente para entradas negativas (0.1x)."
+                },
+                elu: {
+                    name: "ELU",
+                    color: "#ffa726",
+                    fn: (x) => x > 0 ? x : (Math.exp(x) - 1),
+                    description: "Unidade Linear Exponencial. Suaviza a transição em x = 0 e pode melhorar o aprendizado."
+                },
+                linear: {
+                    name: "Linear",
+                    color: "#ef5350",
+                    fn: (x) => x,
+                    description: "Sem transformação não-linear. Mostra a limitação de redes neurais sem funções de ativação."
+                }
+            };
+            
+            // Calcular a saída do neurônio
+            const calculateNeuronOutput = (x1, x2, w1, w2, b, activationFn) => {
+                const weightedSum = (x1 * w1) + (x2 * w2) + b;
+                return activationFunctions[activationFn].fn(weightedSum);
+            };
+            
+            // Desenhar o neurônio
+            const drawNeuron = () => {
+                const canvas = neuronCanvasRef.current;
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width;
+                const height = canvas.height;
+                
+                // Limpar canvas
+                ctx.clearRect(0, 0, width, height);
+                
+                // Cores baseadas nos valores dos pesos
+                const getWeightColor = (weight) => {
+                    if (weight > 0) {
+                        const intensity = Math.min(1, weight / 2);
+                        return `rgba(0, 128, 0, ${intensity})`;
+                    } else {
+                        const intensity = Math.min(1, -weight / 2);
+                        return `rgba(255, 0, 0, ${intensity})`;
+                    }
+                };
+                
+                // Tamanho do neurônio
+                const neuronRadius = 40;
+                
+                // Posições
+                const neuronX = width / 2;
+                const neuronY = height / 2;
+                const input1X = 50;
+                const input1Y = height / 3;
+                const input2X = 50;
+                const input2Y = (height / 3) * 2;
+                const outputX = width - 50;
+                const outputY = height / 2;
+                
+                // Desenhar conexões
+                ctx.beginPath();
+                ctx.strokeStyle = getWeightColor(weight1);
+                ctx.lineWidth = Math.abs(weight1) * 3;
+                ctx.moveTo(input1X, input1Y);
+                ctx.lineTo(neuronX, neuronY);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.strokeStyle = getWeightColor(weight2);
+                ctx.lineWidth = Math.abs(weight2) * 3;
+                ctx.moveTo(input2X, input2Y);
+                ctx.lineTo(neuronX, neuronY);
+                ctx.stroke();
+                
+                // Conexão de saída
+                ctx.beginPath();
+                ctx.strokeStyle = "#333";
+                ctx.lineWidth = 2;
+                ctx.moveTo(neuronX + neuronRadius, neuronY);
+                ctx.lineTo(outputX, outputY);
+                ctx.stroke();
+                
+                // Desenhar neurônio
+                ctx.beginPath();
+                ctx.arc(neuronX, neuronY, neuronRadius, 0, Math.PI * 2);
+                ctx.fillStyle = "#f5f5f5";
+                ctx.fill();
+                ctx.strokeStyle = "#333";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Texto dentro do neurônio
+                ctx.fillStyle = "#333";
+                ctx.font = "14px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(activationFunctions[activeFunction].name, neuronX, neuronY - 10);
+                ctx.fillText(`Σ → f`, neuronX, neuronY + 10);
+                
+                // Desenhar nós de entrada
+                ctx.beginPath();
+                ctx.arc(input1X, input1Y, 20, 0, Math.PI * 2);
+                ctx.fillStyle = "#e3f2fd";
+                ctx.fill();
+                ctx.strokeStyle = "#333";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(input2X, input2Y, 20, 0, Math.PI * 2);
+                ctx.fillStyle = "#e3f2fd";
+                ctx.fill();
+                ctx.strokeStyle = "#333";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // Texto nas entradas
+                ctx.fillStyle = "#333";
+                ctx.font = "14px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(`x₁: ${input1.toFixed(1)}`, input1X, input1Y);
+                ctx.fillText(`x₂: ${input2.toFixed(1)}`, input2X, input2Y);
+                
+                // Texto nos pesos
+                ctx.font = "12px Arial";
+                ctx.fillStyle = weight1 >= 0 ? "green" : "red";
+                ctx.fillText(`w₁: ${weight1.toFixed(1)}`, (input1X + neuronX) / 2, (input1Y + neuronY) / 2 - 10);
+                
+                ctx.fillStyle = weight2 >= 0 ? "green" : "red";
+                ctx.fillText(`w₂: ${weight2.toFixed(1)}`, (input2X + neuronX) / 2, (input2Y + neuronY) / 2 + 10);
+                
+                // Texto do bias
+                ctx.fillStyle = bias >= 0 ? "green" : "red";
+                ctx.fillText(`b: ${bias.toFixed(1)}`, neuronX, neuronY - neuronRadius - 10);
+                
+                // Nó de saída
+                ctx.beginPath();
+                ctx.arc(outputX, outputY, 20, 0, Math.PI * 2);
+                ctx.fillStyle = "#e1f5fe";
+                ctx.fill();
+                ctx.strokeStyle = "#333";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // Calcular saída
+                const output = calculateNeuronOutput(input1, input2, weight1, weight2, bias, activeFunction);
+                
+                // Texto na saída
+                ctx.fillStyle = "#333";
+                ctx.font = "14px Arial";
+                ctx.fillText(`y: ${output.toFixed(3)}`, outputX, outputY);
+            };
+            
+            // Plotar função de ativação
+            const plotActivationFunction = () => {
+                if (!functionPlotRef.current) return;
+                
+                // Dados para o gráfico
+                const x = [];
+                const y = [];
+                
+                // Calcular valores para o gráfico
+                for (let i = -5; i <= 5; i += 0.1) {
+                    x.push(i);
+                    y.push(activationFunctions[activeFunction].fn(i));
+                }
+                
+                // Dados para o ponto atual
+                const weightedSum = (input1 * weight1) + (input2 * weight2) + bias;
+                const output = activationFunctions[activeFunction].fn(weightedSum);
+                
+                // Configurar dados para o gráfico
+                const data = [{
+                    x: x,
+                    y: y,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: activationFunctions[activeFunction].name,
+                    line: {
+                        color: activationFunctions[activeFunction].color,
+                        width: 3
+                    }
+                }];
+                
+                // Adicionar curvas de comparação se estiver no modo de comparação
+                if (comparisonMode) {
+                    for (const [key, func] of Object.entries(activationFunctions)) {
+                        if (key !== activeFunction) {
+                            const yCompare = x.map(val => func.fn(val));
+                            data.push({
+                                x: x,
+                                y: yCompare,
+                                type: 'scatter',
+                                mode: 'lines',
+                                name: func.name,
+                                line: {
+                                    color: func.color,
+                                    width: 2,
+                                    dash: 'dot'
+                                },
+                                opacity: 0.7
+                            });
+                        }
+                    }
+                }
+                
+                // Adicionar ponto atual
+                data.push({
+                    x: [weightedSum],
+                    y: [output],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'Saída Atual',
+                    marker: {
+                        color: 'black',
+                        size: 10
+                    }
+                });
+                
+                // Layout do gráfico
+                const layout = {
+                    title: 'Função de Ativação',
+                    xaxis: {
+                        title: 'Entrada (Σ)',
+                        zeroline: true,
+                        zerolinecolor: '#969696',
+                        zerolinewidth: 1
+                    },
+                    yaxis: {
+                        title: 'Saída f(Σ)',
+                        zeroline: true,
+                        zerolinecolor: '#969696',
+                        zerolinewidth: 1
+                    },
+                    legend: {
+                        x: 0,
+                        y: 1,
+                        orientation: 'h'
+                    },
+                    annotations: [
+                        {
+                            x: weightedSum,
+                            y: output,
+                            xref: 'x',
+                            yref: 'y',
+                            text: `(${weightedSum.toFixed(2)}, ${output.toFixed(2)})`,
+                            showarrow: true,
+                            arrowhead: 2,
+                            ax: 30,
+                            ay: -30
+                        }
+                    ],
+                    shapes: [
+                        // Linha vertical da entrada ponderada
+                        {
+                            type: 'line',
+                            x0: weightedSum,
+                            y0: 0,
+                            x1: weightedSum,
+                            y1: output,
+                            line: {
+                                color: 'rgba(0, 0, 0, 0.5)',
+                                width: 1,
+                                dash: 'dash'
+                            }
+                        },
+                        // Linha horizontal da saída
+                        {
+                            type: 'line',
+                            x0: 0,
+                            y0: output,
+                            x1: weightedSum,
+                            y1: output,
+                            line: {
+                                color: 'rgba(0, 0, 0, 0.5)',
+                                width: 1,
+                                dash: 'dash'
+                            }
+                        }
+                    ],
+                    height: 400,
+                    margin: { l: 50, r: 50, b: 50, t: 50, pad: 4 }
+                };
+                
+                // Criar ou atualizar gráfico
+                Plotly.newPlot(functionPlotRef.current, data, layout, { responsive: true });
+            };
+            
+            // Plotar gráfico de superfície
+            const plotSurfaceGraph = () => {
+                if (!surfacePlotRef.current) return;
+                
+                // Criar dados para o gráfico de superfície
+                const x = [];
+                const y = [];
+                const z = [];
+                
+                // Gerar valores x e y de -2 a 2 em intervalos de 0.1
+                for (let i = -2; i <= 2; i += 0.1) {
+                    x.push(i);
+                    y.push(i);
+                }
+                
+                // Calcular z (saída) para cada combinação de x1 e x2
+                for (let i = 0; i < y.length; i++) {
+                    const zRow = [];
+                    for (let j = 0; j < x.length; j++) {
+                        const x1 = x[j];
+                        const x2 = y[i];
+                        const weightedSum = (x1 * weight1) + (x2 * weight2) + bias;
+                        const output = activationFunctions[activeFunction].fn(weightedSum);
+                        zRow.push(output);
+                    }
+                    z.push(zRow);
+                }
+                
+                // Dados para o gráfico
+                const data = [{
+                    type: 'surface',
+                    x: x,
+                    y: y,
+                    z: z,
+                    colorscale: 'Viridis',
+                    colorbar: {
+                        title: 'Saída',
+                        thickness: 20,
+                        len: 0.5
+                    }
+                }];
+                
+                // Marcar o ponto atual como uma linha vertical
+                const currentX = input1;
+                const currentY = input2;
+                const currentZ = calculateNeuronOutput(input1, input2, weight1, weight2, bias, activeFunction);
+                
+                data.push({
+                    type: 'scatter3d',
+                    mode: 'markers',
+                    x: [currentX],
+                    y: [currentY],
+                    z: [currentZ],
+                    marker: {
+                        size: 8,
+                        color: 'red'
+                    },
+                    name: 'Ponto Atual'
+                });
+                
+                // Layout do gráfico
+                const layout = {
+                    title: 'Superfície de Decisão em 3D',
+                    scene: {
+                        xaxis: { title: 'Entrada x₁' },
+                        yaxis: { title: 'Entrada x₂' },
+                        zaxis: { title: 'Saída' },
+                        camera: {
+                            eye: { x: 1.5, y: 1.5, z: 1 }
+                        }
+                    },
+                    height: 500,
+                    margin: { l: 0, r: 0, b: 0, t: 50 }
+                };
+                
+                // Criar gráfico
+                Plotly.newPlot(surfacePlotRef.current, data, layout, { responsive: true });
+            };
+            
+            // Atualizar visualizações quando parâmetros mudam
+            React.useEffect(() => {
+                drawNeuron();
+                plotActivationFunction();
+                plotSurfaceGraph();
+            }, [input1, input2, weight1, weight2, bias, activeFunction, comparisonMode]);
+            
+            // Efeito inicial para desenhar neurônio quando o componente montar
+            React.useEffect(() => {
+                drawNeuron();
+                plotActivationFunction();
+                plotSurfaceGraph();
+            }, []);
+            
+            // Calcular a saída atual do neurônio
+            const neuronsOutput = calculateNeuronOutput(input1, input2, weight1, weight2, bias, activeFunction);
+            
+            return (
+                <div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
+                        {/* Painel de controle */}
+                        <div style={{ padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
+                            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Configuração do Neurônio</h3>
+                            
+                            <div style={{ marginBottom: '16px' }}>
+                                <h4>Função de Ativação:</h4>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+                                    {Object.entries(activationFunctions).map(([key, func]) => (
+                                        <button
+                                            key={key}
+                                            className={`button ${activeFunction === key ? 'button-selected' : ''}`}
+                                            onClick={() => setActiveFunction(key)}
+                                            style={{ 
+                                                backgroundColor: activeFunction === key ? func.color : undefined,
+                                                border: activeFunction === key ? '2px solid #1a1a1a' : undefined
+                                            }}
+                                        >
+                                            {func.name}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p style={{ fontSize: '14px', color: '#6c757d', marginBottom: '16px' }}>
+                                    {activationFunctions[activeFunction].description}
+                                </p>
+                                <div style={{ marginBottom: '16px' }}>
+                                    <label>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={comparisonMode} 
+                                            onChange={() => setComparisonMode(!comparisonMode)}
+                                            style={{ marginRight: '8px' }}
+                                        />
+                                        Comparar com outras funções
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div className="input-control">
+                                <label>Entrada x₁: {input1.toFixed(1)}</label>
+                                <input
+                                    type="range"
+                                    min="-2"
+                                    max="2"
+                                    step="0.1"
+                                    value={input1}
+                                    onChange={(e) => setInput1(parseFloat(e.target.value))}
+                                />
+                            </div>
+                            
+                            <div className="input-control">
+                                <label>Entrada x₂: {input2.toFixed(1)}</label>
+                                <input
+                                    type="range"
+                                    min="-2"
+                                    max="2"
+                                    step="0.1"
+                                    value={input2}
+                                    onChange={(e) => setInput2(parseFloat(e.target.value))}
+                                />
+                            </div>
+                            
+                            <div className="input-control">
+                                <label>Peso w₁: {weight1.toFixed(1)}</label>
+                                <input
+                                    type="range"
+                                    min="-2"
+                                    max="2"
+                                    step="0.1"
+                                    value={weight1}
+                                    onChange={(e) => setWeight1(parseFloat(e.target.value))}
+                                />
+                            </div>
+                            
+                            <div className="input-control">
+                                <label>Peso w₂: {weight2.toFixed(1)}</label>
+                                <input
+                                    type="range"
+                                    min="-2"
+                                    max="2"
+                                    step="0.1"
+                                    value={weight2}
+                                    onChange={(e) => setWeight2(parseFloat(e.target.value))}
+                                />
+                            </div>
+                            
+                            <div className="input-control">
+                                <label>Bias: {bias.toFixed(1)}</label>
+                                <input
+                                    type="range"
+                                    min="-2"
+                                    max="2"
+                                    step="0.1"
+                                    value={bias}
+                                    onChange={(e) => setBias(parseFloat(e.target.value))}
+                                />
+                            </div>
+                            
+                            <div className="neuron-output">
+                                <strong>Saída do Neurônio:</strong> {neuronsOutput.toFixed(4)}
+                            </div>
+                        </div>
+                        
+                        {/* Visualizações */}
+                        <div>
+                            <div style={{ marginBottom: '20px' }}>
+                                <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Representação do Neurônio</h3>
+                                <canvas 
+                                    ref={neuronCanvasRef} 
+                                    width={500} 
+                                    height={250} 
+                                    className="neuron-canvas"
+                                ></canvas>
+                            </div>
+                            
+                            <div style={{ marginBottom: '20px' }}>
+                                <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Curva da Função de Ativação</h3>
+                                <div ref={functionPlotRef} className="plot-container"></div>
+                            </div>
+                            
+                            <div>
+                                <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Superfície de Decisão</h3>
+                                <div ref={surfacePlotRef} className="plot-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Renderizar aplicação
+        ReactDOM.render(<ActivationFunctionsDemo />, document.getElementById('app-container'));
+    </script>
+</body>
+</html>
