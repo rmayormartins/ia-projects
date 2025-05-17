@@ -6,15 +6,15 @@
     <title>Visualização do Backpropagation - IFSC IA</title>
     
     <!-- React e ReactDOM -->
-    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js" crossorigin></script>
     
     <!-- Babel para JSX -->
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js" crossorigin></script>
     
     <style>
         body {
-            font-family: -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
             background-color: #f5f7fb;
             padding: 20px;
             margin: 0;
@@ -29,7 +29,7 @@
         .back-button {
             display: inline-flex;
             align-items: center;
-            color: blue;
+            color: #4c6ef5;
             font-weight: bold;
             margin-bottom: 20px;
             text-decoration: none;
@@ -114,7 +114,7 @@
             border: 1px solid #dee2e6;
             border-radius: 4px;
             width: 100%;
-            height: auto;
+            height: 300px;
             background-color: white;
         }
         
@@ -122,7 +122,7 @@
             border: 1px solid #dee2e6;
             border-radius: 4px;
             width: 100%;
-            height: auto;
+            height: 200px;
             background-color: white;
         }
         
@@ -221,13 +221,13 @@
             const [stepInfo, setStepInfo] = React.useState('');
             const [datasetType, setDatasetType] = React.useState('xor');
             
-            // Intervalos para animação
-            const animationIntervalRef = React.useRef(null);
-            const phaseTimeoutRef = React.useRef(null);
-            
             // Refs para canvas
             const networkCanvasRef = React.useRef(null);
             const lossChartRef = React.useRef(null);
+            
+            // Refs para animação
+            const animationIntervalRef = React.useRef(null);
+            const phaseTimeoutRef = React.useRef(null);
             
             // Função de ativação sigmoid e sua derivada
             const sigmoid = x => 1 / (1 + Math.exp(-x));
@@ -335,13 +335,6 @@
                         { inputs: [1, 1], target: [1] }
                     ]);
                 }
-            };
-            
-            // Atualizar número de neurônios na camada oculta
-            const updateHiddenLayerSize = (size) => {
-                const newArchitecture = [...architecture];
-                newArchitecture[1] = size;
-                setArchitecture(newArchitecture);
             };
             
             // Função forward pass
@@ -575,7 +568,7 @@
                 // Calcular posições e dimensões
                 const layerSpacing = width / (architecture.length + 1);
                 const maxNeurons = Math.max(...architecture);
-                const neuronRadius = 20;
+                const neuronRadius = 15;
                 const neuronSpacing = Math.min(height / (maxNeurons + 1), 70);
                 
                 // Desenhar conexões
@@ -664,13 +657,12 @@
                         }
                     }
                     
-                    // Bias
+                    // Adicionar bias connections
                     const biasY = leftLayerTop + leftLayerSize * neuronSpacing;
                     
                     for (let j = 0; j < rightLayerSize; j++) {
                         const endY = rightLayerTop + j * neuronSpacing;
                         
-                        // Cores para bias
                         let weight = weights[l]?.[leftLayerSize]?.[j] || 0;
                         let gradient = gradients[l]?.[leftLayerSize]?.[j] || 0;
                         
@@ -682,13 +674,9 @@
                             lineWidth = 1 + absWeight * 3;
                             
                             if (weight > 0) {
-                                const g = Math.floor(200 * (1 - Math.min(1, absWeight)));
-                                const b = Math.floor(200 * (1 - Math.min(1, absWeight)));
-                                strokeColor = `rgb(200, ${g}, ${b})`;
+                                strokeColor = `rgba(200, 0, 0, ${Math.min(1, absWeight)})`;
                             } else {
-                                const r = Math.floor(200 * (1 - Math.min(1, absWeight)));
-                                const g = Math.floor(200 * (1 - Math.min(1, absWeight)));
-                                strokeColor = `rgb(${r}, ${g}, 200)`;
+                                strokeColor = `rgba(0, 0, 200, ${Math.min(1, absWeight)})`;
                             }
                         } else if (phase === 'backward') {
                             const absGradient = Math.abs(gradient);
@@ -696,9 +684,8 @@
                             
                             strokeColor = `rgba(255, 165, 0, ${Math.min(1, absGradient * 5)})`;
                         } else if (phase === 'update') {
-                            const absWeight = Math.abs(weight);
                             const absGradient = Math.abs(gradient);
-                            lineWidth = 1 + absWeight * 3;
+                            lineWidth = 1 + absGradient * 10;
                             
                             if (weight > 0 && gradient > 0 || weight < 0 && gradient < 0) {
                                 strokeColor = `rgba(255, 0, 0, ${Math.min(1, absGradient * 5)})`;
@@ -708,13 +695,339 @@
                         }
                         
                         ctx.beginPath();
+                        ctx.setLineDash([3, 3]);
                         ctx.moveTo(leftX, biasY);
                         ctx.lineTo(rightX, endY);
                         ctx.strokeStyle = strokeColor;
                         ctx.lineWidth = lineWidth;
-                        ctx.setLineDash([5, 2]); // Linha tracejada para bias
                         ctx.stroke();
-                        ctx.setLineDash([]); // Restaurar linha sólida
+                        ctx.setLineDash([]);
                         
                         // Mostrar valor do bias
-                        const
+                        const textX = (leftX + rightX) / 2;
+                        const textY = (biasY + endY) / 2;
+                        ctx.font = "10px Arial";
+                        ctx.fillStyle = "#333";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        
+                        if (phase === 'backward') {
+                            ctx.fillText(`∇b: ${gradient.toFixed(2)}`, textX, textY);
+                        } else {
+                            ctx.fillText(`b: ${weight.toFixed(2)}`, textX, textY);
+                        }
+                    }
+                }
+                
+                // Desenhar neurônios
+                for (let l = 0; l < architecture.length; l++) {
+                    const layerSize = architecture[l];
+                    const x = layerSpacing * (l + 1);
+                    const layerTop = height / 2 - (layerSize * neuronSpacing) / 2;
+                    
+                    for (let i = 0; i < layerSize; i++) {
+                        const y = layerTop + i * neuronSpacing;
+                        
+                        // Desenhar círculo
+                        ctx.beginPath();
+                        ctx.arc(x, y, neuronRadius, 0, Math.PI * 2);
+                        ctx.fillStyle = '#f8f9fa';
+                        ctx.strokeStyle = '#4c6ef5';
+                        ctx.lineWidth = 2;
+                        ctx.fill();
+                        ctx.stroke();
+                        
+                        // Adicionar rótulo
+                        ctx.font = "12px Arial";
+                        ctx.fillStyle = "#333";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        
+                        if (l === 0) {
+                            ctx.fillText(`x${i+1}`, x, y);
+                        } else if (l === architecture.length - 1) {
+                            ctx.fillText(`y${i+1}`, x, y);
+                        } else {
+                            ctx.fillText(`h${l}_${i+1}`, x, y);
+                        }
+                    }
+                    
+                    // Desenhar bias se não for a última camada
+                    if (l < architecture.length - 1) {
+                        const biasY = layerTop + layerSize * neuronSpacing;
+                        
+                        ctx.beginPath();
+                        ctx.arc(x, biasY, neuronRadius, 0, Math.PI * 2);
+                        ctx.fillStyle = '#fff3bf';
+                        ctx.strokeStyle = '#e67700';
+                        ctx.lineWidth = 2;
+                        ctx.fill();
+                        ctx.stroke();
+                        
+                        ctx.font = "12px Arial";
+                        ctx.fillStyle = "#333";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(`b${l+1}`, x, biasY);
+                    }
+                }
+            };
+            
+            // Desenhar gráfico de perda
+            const drawLossChart = () => {
+                const canvas = lossChartRef.current;
+                if (!canvas || lossHistory.length === 0) return;
+                
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width;
+                const height = canvas.height;
+                
+                // Limpar canvas
+                ctx.clearRect(0, 0, width, height);
+                
+                // Calcular escalas
+                const padding = 30;
+                const chartWidth = width - 2 * padding;
+                const chartHeight = height - 2 * padding;
+                
+                const maxLoss = Math.max(...lossHistory, 1);
+                const minLoss = 0;
+                
+                // Desenhar eixos
+                ctx.beginPath();
+                ctx.moveTo(padding, padding);
+                ctx.lineTo(padding, height - padding);
+                ctx.lineTo(width - padding, height - padding);
+                ctx.strokeStyle = "#333";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // Rótulos dos eixos
+                ctx.font = "12px Arial";
+                ctx.fillStyle = "#333";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "top";
+                ctx.fillText("Iterações", width / 2, height - padding + 10);
+                
+                ctx.textAlign = "right";
+                ctx.textBaseline = "middle";
+                ctx.fillText("Erro", padding - 10, height / 2);
+                
+                // Desenhar linha de perda
+                if (lossHistory.length > 1) {
+                    ctx.beginPath();
+                    
+                    for (let i = 0; i < lossHistory.length; i++) {
+                        const x = padding + (i / (lossHistory.length - 1)) * chartWidth;
+                        const y = height - padding - ((lossHistory[i] - minLoss) / (maxLoss - minLoss)) * chartHeight;
+                        
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    
+                    ctx.strokeStyle = "#fa5252";
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                
+                // Desenhar valor atual
+                const currentLoss = lossHistory[lossHistory.length - 1];
+                ctx.font = "14px Arial";
+                ctx.fillStyle = "#fa5252";
+                ctx.textAlign = "left";
+                ctx.textBaseline = "top";
+                ctx.fillText(`Erro: ${currentLoss.toFixed(4)}`, padding + 10, padding + 10);
+            };
+            
+            // Interface do usuário
+            return (
+                <div>
+                    <div className="info-box">
+                        <p>Esta visualização mostra como o algoritmo de retropropagação (backpropagation) funciona. Você pode controlar a animação, escolher diferentes problemas e ver como os pesos são atualizados para minimizar o erro.</p>
+                    </div>
+                    
+                    <div className="grid">
+                        <div>
+                            <h3>Configurações</h3>
+                            
+                            <div>
+                                <h4>Problema</h4>
+                                <button 
+                                    className={`button ${datasetType === 'xor' ? 'button-selected' : ''}`}
+                                    onClick={() => setDatasetType('xor')}
+                                >
+                                    XOR
+                                </button>
+                                <button 
+                                    className={`button ${datasetType === 'and' ? 'button-selected' : ''}`}
+                                    onClick={() => setDatasetType('and')}
+                                >
+                                    AND
+                                </button>
+                                <button 
+                                    className={`button ${datasetType === 'or' ? 'button-selected' : ''}`}
+                                    onClick={() => setDatasetType('or')}
+                                >
+                                    OR
+                                </button>
+                            </div>
+                            
+                            <div className="slider-container">
+                                <label>Neurônios na camada oculta: {architecture[1]}</label>
+                                <input 
+                                    type="range" 
+                                    min="2" 
+                                    max="6" 
+                                    value={architecture[1]} 
+                                    onChange={(e) => updateHiddenLayerSize(parseInt(e.target.value))}
+                                    disabled={isTraining}
+                                />
+                            </div>
+                            
+                            <div className="slider-container">
+                                <label>Taxa de aprendizado: {learningRate}</label>
+                                <input 
+                                    type="range" 
+                                    min="0.01" 
+                                    max="0.5" 
+                                    step="0.01" 
+                                    value={learningRate} 
+                                    onChange={(e) => setLearningRate(parseFloat(e.target.value))}
+                                />
+                            </div>
+                            
+                            <div className="slider-container">
+                                <label>Máximo de épocas: {maxEpochs}</label>
+                                <input 
+                                    type="range" 
+                                    min="5" 
+                                    max="100" 
+                                    step="5" 
+                                    value={maxEpochs} 
+                                    onChange={(e) => setMaxEpochs(parseInt(e.target.value))}
+                                    disabled={isTraining}
+                                />
+                            </div>
+                            
+                            <div className="slider-container">
+                                <label>Velocidade da animação: {animationSpeed}%</label>
+                                <input 
+                                    type="range" 
+                                    min="0" 
+                                    max="100" 
+                                    value={animationSpeed} 
+                                    onChange={(e) => setAnimationSpeed(parseInt(e.target.value))}
+                                />
+                            </div>
+                            
+                            <div style={{ marginTop: '20px' }}>
+                                <h4>Controles</h4>
+                                <div>
+                                    <button 
+                                        className="button button-green" 
+                                        onClick={startTraining}
+                                        disabled={isTraining}
+                                    >
+                                        Iniciar Treinamento
+                                    </button>
+                                    <button 
+                                        className="button button-red" 
+                                        onClick={stopTraining}
+                                        disabled={!isTraining}
+                                    >
+                                        Parar
+                                    </button>
+                                    <button 
+                                        className="button" 
+                                        onClick={resetTraining}
+                                        disabled={isTraining}
+                                    >
+                                        Reiniciar
+                                    </button>
+                                </div>
+                                <div style={{ marginTop: '10px' }}>
+                                    <button 
+                                        className="button" 
+                                        onClick={stepForward}
+                                        disabled={isTraining}
+                                    >
+                                        Passo a Passo
+                                    </button>
+                                    <label style={{ marginLeft: '10px' }}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={isAnimating} 
+                                            onChange={(e) => setIsAnimating(e.target.checked)}
+                                            disabled={isTraining}
+                                        />
+                                        Mostrar animação
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            {stepInfo && (
+                                <div className="step-info">
+                                    {stepInfo}
+                                </div>
+                            )}
+                            
+                            {phase !== 'idle' && (
+                                <div style={{ marginTop: '10px' }}>
+                                    <div 
+                                        className={`phase-label ${
+                                            phase === 'forward' ? 'forward-phase' : 
+                                            phase === 'backward' ? 'backward-phase' : 
+                                            'update-phase'
+                                        }`}
+                                    >
+                                        {phase === 'forward' ? 'Propagação (Forward)' : 
+                                         phase === 'backward' ? 'Retropropagação (Backward)' : 
+                                         'Atualização dos Pesos'}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <div style={{ marginTop: '10px' }}>
+                                <p>Época: {epoch}/{maxEpochs}</p>
+                                <p>Iteração: {iteration}</p>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3>Visualização</h3>
+                            <div>
+                                <h4>Rede Neural</h4>
+                                <canvas 
+                                    ref={networkCanvasRef} 
+                                    className="network-canvas" 
+                                    width={500} 
+                                    height={300}
+                                />
+                            </div>
+                            <div style={{ marginTop: '20px' }}>
+                                <h4>Erro ao Longo do Tempo</h4>
+                                <canvas 
+                                    ref={lossChartRef} 
+                                    className="loss-chart" 
+                                    width={500} 
+                                    height={200}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        // Renderizar o componente no DOM
+        ReactDOM.render(
+            <BackpropagationDemo />,
+            document.getElementById('app-container')
+        );
+    </script>
+</body>
+</html>
+                
