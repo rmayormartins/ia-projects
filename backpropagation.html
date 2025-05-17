@@ -6,8 +6,8 @@
     <title>Visualização do Backpropagation - IFSC IA</title>
     
     <!-- React e ReactDOM -->
-    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     
     <!-- Babel para JSX -->
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
@@ -62,6 +62,10 @@
         .button:disabled {
             background: #adb5bd;
             cursor: not-allowed;
+        }
+        
+        .button-selected {
+            background: #364fc7;
         }
         
         .button-green {
@@ -240,8 +244,10 @@
             
             // Desenhar visualizações quando estado muda
             React.useEffect(() => {
-                drawNetwork();
-                drawLossChart();
+                if (networkCanvasRef.current && lossChartRef.current) {
+                    drawNetwork();
+                    drawLossChart();
+                }
             }, [weights, gradients, phase, trainingData, currentExample, lossHistory]);
             
             // Limpar intervalos quando componente desmonta
@@ -711,408 +717,532 @@
                         ctx.setLineDash([]); // Restaurar linha sólida
                         
                         // Mostrar valor do bias
-                        const textX = (leftX + rightX) / 2;
-                        const textY = (biasY + endY) / 2;
-                        ctx.font = "10px Arial";
-                        ctx.fillStyle = "#333";
-                        ctx.textAlign = "center";
-                        ctx.textBaseline = "middle";
-                        
-                        if (phase === 'backward') {
-                            ctx.fillText(`∇: ${gradient.toFixed(2)}`, textX, textY);
-                        } else {
-                            ctx.fillText(`b: ${weight.toFixed(2)}`, textX, textY);
+                        const values[i] = [];
+                        for (let j = 0; j < resolution; j++) {
+                            const x = xStart + i * dx;
+                            const y = yStart + j * dy;
+                            const value = fnInfo.fn(x, y);
+                            
+                            values[i][j] = value;
+                            minValue = Math.min(minValue, value);
+                            maxValue = Math.max(maxValue, value);
                         }
                     }
+                    
+                    // Normalizar valores para iluminação
+                    const normalizeValue = (value) => {
+                        return Math.log(1 + value - minValue) / Math.log(1 + maxValue - minValue);
+                    };
+                    
+                    // Calcular direção de iluminação
+                    const lightDir = [0.5, 0.5, -1];
+                    const lightLen = Math.sqrt(lightDir[0]*lightDir[0] + lightDir[1]*lightDir[1] + lightDir[2]*lightDir[2]);
+                    lightDir[0] /= lightLen;
+                    lightDir[1] /= lightLen;
+                    lightDir[2] /= lightLen;
+                    
+                    // Desenhar superfície
+                    const imageData = ctx.createImageData(resolution, resolution);
+                    
+                    for (let i = 1; i < resolution - 1; i++) {
+                        for (let j = 1; j < resolution - 1; j++) {
+                            // Calcular normais
+                            const val = values[i][j];
+                            const valLeft = values[i-1][j];
+                            const valRight = values[i+1][j];
+                            const valTop = values[i][j-1];
+                            const valBottom = values[i][j+1];
+                            
+                            // Vetor normal
+                            const nx = -(valRight - valLeft) / (2 * dx);
+                            const ny = -(valBottom - valTop) / (2 * dy);
+                            const nz = 1;
+                            
+                            // Normalizar
+                            const len = Math.sqrt(nx*nx + ny*ny + nz*nz);
+                            const normX = nx / len;
+                            const normY = ny / len;
+                            const normZ = nz / len;
+                            
+                            // Produto escalar com a luz
+                            let dot = normX * lightDir[0] + normY * lightDir[1] + normZ * lightDir[2];
+                            dot = Math.max(0.1, dot); // Luz ambiente mínima
+                            
+                            // Cor base com base no valor
+                            const normalized = normalizeValue(val);
+                            let r = Math.floor(255 * Math.min(1, 2 * normalized));
+                            let g = Math.floor(255 * Math.min(1, 2 * (1 - Math.abs(2 * normalized - 1))));
+                            let b = Math.floor(255 * Math.min(1, 2 * (1 - normalized)));
+                            
+                            // Aplicar iluminação
+                            r = Math.floor(r * dot);
+                            g = Math.floor(g * dot);
+                            b = Math.floor(b * dot);
+                            
+                            const idx = (j * resolution + i) * 4;
+                            imageData.data[idx] = r;
+                            imageData.data[idx + 1] = g;
+                            imageData.data[idx + 2] = b;
+                            imageData.data[idx + 3] = 255;
+                        }
+                    }
+                    
+                    // Criar um canvas temporário para a superfície
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = resolution;
+                    tempCanvas.height = resolution;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.putImageData(imageData, 0, 0);
+                    
+                    // Desenhar superfície redimensionada no canvas principal
+                    ctx.drawImage(tempCanvas, 0, 0, width, height);
                 }
                 
-                // Desenhar neurônios
-                for (let l = 0; l < architecture.length; l++) {
-                    const layerSize = architecture[l];
-                    const layerX = layerSpacing * (l + 1);
-                    const layerTop = height / 2 - (layerSize * neuronSpacing) / 2;
+                // Desenhar mínimos globais
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 2;
+                
+                for (const [minX, minY] of fnInfo.minima) {
+                    const canvasX = ((minX - xStart) / (xEnd - xStart)) * width;
+                    const canvasY = ((minY - yStart) / (yEnd - yStart)) * height;
                     
-                    for (let i = 0; i < layerSize; i++) {
-                        const y = layerTop + i * neuronSpacing;
-                        
-                        // Desenhar neurônio
-                        ctx.beginPath();
-                        ctx.arc(layerX, y, neuronRadius, 0, Math.PI * 2);
-                        
-                        // Cor baseada na camada
-                        if (l === 0) {
-                            ctx.fillStyle = "#e3f2fd"; // Entrada
-                        } else if (l === architecture.length - 1) {
-                            ctx.fillStyle = "#e8f5e9"; // Saída
-                        } else {
-                            ctx.fillStyle = "#fff3e0"; // Oculta
-                        }
-                        
-                        ctx.fill();
-                        ctx.strokeStyle = "#555";
-                        ctx.lineWidth = 1;
-                        ctx.stroke();
-                        
-                        // Texto no neurônio
-                        ctx.fillStyle = "#333";
-                        ctx.font = "12px Arial";
-                        ctx.textAlign = "center";
-                        ctx.textBaseline = "middle";
-                        
-                        let label = "";
-                        if (l === 0) {
-                            label = `x${i+1}`;
-                            
-                            // Mostrar valor atual da entrada
-                            if (trainingData.length > 0 && currentExample < trainingData.length) {
-                                label += `: ${trainingData[currentExample].inputs[i]}`;
-                            }
-                        } else if (l === architecture.length - 1) {
-                            label = `y`;
-                            
-                            // Mostrar valor alvo
-                            if (trainingData.length > 0 && currentExample < trainingData.length) {
-                                label += ` (alvo: ${trainingData[currentExample].target[i]})`;
-                            }
-                        } else {
-                            label = `h${l}_${i+1}`;
-                        }
-                        
-                        ctx.fillText(label, layerX, y);
-                    }
-                    
-                    // Desenhar bias para todas as camadas exceto a última
-                    if (l < architecture.length - 1) {
-                        const biasY = layerTop + layerSize * neuronSpacing;
-                        
-                        ctx.beginPath();
-                        ctx.arc(layerX, biasY, neuronRadius, 0, Math.PI * 2);
-                        ctx.fillStyle = "#f3e5f5"; // Bias
-                        ctx.fill();
-                        ctx.strokeStyle = "#555";
-                        ctx.lineWidth = 1;
-                        ctx.stroke();
-                        
-                        ctx.fillStyle = "#333";
-                        ctx.font = "12px Arial";
-                        ctx.textAlign = "center";
-                        ctx.textBaseline = "middle";
-                        ctx.fillText("bias: 1", layerX, biasY);
-                    }
-                    
-                    // Rótulo da camada
-                    ctx.fillStyle = "#555";
-                    ctx.font = "14px Arial";
-                    ctx.textAlign = "center";
-                    ctx.fillText(
-                        l === 0 ? "Entrada" : l === architecture.length - 1 ? "Saída" : `Oculta ${l}`,
-                        layerX,
-                        height - 20
-                    );
+                    ctx.beginPath();
+                    ctx.arc(canvasX, canvasY, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
                 }
                 
-                // Legenda de cores
-                const legendX = 20;
-                let legendY = 20;
-                const legendSpacing = 20;
-                
-                ctx.font = "12px Arial";
-                ctx.textAlign = "left";
-                ctx.textBaseline = "middle";
-                
-                if (phase === 'forward' || phase === 'idle') {
-                    ctx.fillStyle = "rgb(200, 0, 0)";
-                    ctx.fillText("● Peso positivo (excitador)", legendX, legendY);
-                    legendY += legendSpacing;
+                // Desenhar trajetórias dos otimizadores
+                Object.entries(optimizerStates).forEach(([key, state]) => {
+                    if (!selectedOptimizers[key] || state.path.length <= 1) return;
                     
-                    ctx.fillStyle = "rgb(0, 0, 200)";
-                    ctx.fillText("● Peso negativo (inibidor)", legendX, legendY);
-                } else if (phase === 'backward') {
-                    ctx.fillStyle = "rgb(255, 165, 0)";
-                    ctx.fillText("● Gradiente (direção de atualização)", legendX, legendY);
-                } else if (phase === 'update') {
-                    ctx.fillStyle = "rgb(255, 0, 0)";
-                    ctx.fillText("● Redução de magnitude do peso", legendX, legendY);
-                    legendY += legendSpacing;
+                    const color = optimizerColors[key];
                     
-                    ctx.fillStyle = "rgb(0, 255, 0)";
-                    ctx.fillText("● Aumento de magnitude do peso", legendX, legendY);
+                    // Desenhar caminho
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    
+                    for (let i = 0; i < state.path.length; i++) {
+                        const [x, y] = state.path[i];
+                        const canvasX = ((x - xStart) / (xEnd - xStart)) * width;
+                        const canvasY = ((y - yStart) / (yEnd - yStart)) * height;
+                        
+                        if (i === 0) {
+                            ctx.moveTo(canvasX, canvasY);
+                        } else {
+                            ctx.lineTo(canvasX, canvasY);
+                        }
+                    }
+                    
+                    ctx.stroke();
+                    
+                    // Desenhar a posição atual
+                    const [x, y] = state.position;
+                    const canvasX = ((x - xStart) / (xEnd - xStart)) * width;
+                    const canvasY = ((y - yStart) / (yEnd - yStart)) * height;
+                    
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(canvasX, canvasY, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Desenhar vetor de gradiente se estiver ativado
+                    if (showVectors) {
+                        const [dx, dy] = fnInfo.gradient(x, y);
+                        const gradMagnitude = Math.sqrt(dx*dx + dy*dy);
+                        
+                        if (gradMagnitude > 0) {
+                            // Normalizar e escalar o gradiente para visualização
+                            const scale = 20 / gradMagnitude;
+                            const gdx = -dx * scale; // Negativo porque queremos a direção da descida
+                            const gdy = -dy * scale;
+                            
+                            ctx.strokeStyle = 'rgba(200, 100, 0, 0.7)';
+                            ctx.lineWidth = 2;
+                            ctx.beginPath();
+                            ctx.moveTo(canvasX, canvasY);
+                            ctx.lineTo(canvasX + gdx, canvasY + gdy);
+                            ctx.stroke();
+                            
+                            // Desenhar ponta da seta
+                            const arrowSize = 6;
+                            const angle = Math.atan2(gdy, gdx);
+                            
+                            ctx.beginPath();
+                            ctx.moveTo(canvasX + gdx, canvasY + gdy);
+                            ctx.lineTo(
+                                canvasX + gdx - arrowSize * Math.cos(angle - Math.PI/6),
+                                canvasY + gdy - arrowSize * Math.sin(angle - Math.PI/6)
+                            );
+                            ctx.lineTo(
+                                canvasX + gdx - arrowSize * Math.cos(angle + Math.PI/6),
+                                canvasY + gdy - arrowSize * Math.sin(angle + Math.PI/6)
+                            );
+                            ctx.closePath();
+                            ctx.fillStyle = 'rgba(200, 100, 0, 0.7)';
+                            ctx.fill();
+                            
+                            // Desenhar vetores adicionais para momentum e adam
+                            if (key === 'momentum' && state.velocity) {
+                                const [vx, vy] = state.velocity;
+                                const velMagnitude = Math.sqrt(vx*vx + vy*vy);
+                                
+                                if (velMagnitude > 0) {
+                                    const scale = 15 / velMagnitude;
+                                    const vdx = vx * scale;
+                                    const vdy = vy * scale;
+                                    
+                                    ctx.strokeStyle = 'rgba(0, 100, 200, 0.7)';
+                                    ctx.lineWidth = 2;
+                                    ctx.beginPath();
+                                    ctx.moveTo(canvasX, canvasY);
+                                    ctx.lineTo(canvasX + vdx, canvasY + vdy);
+                                    ctx.stroke();
+                                    
+                                    // Desenhar ponta da seta
+                                    const arrowSize = 6;
+                                    const angle = Math.atan2(vdy, vdx);
+                                    
+                                    ctx.beginPath();
+                                    ctx.moveTo(canvasX + vdx, canvasY + vdy);
+                                    ctx.lineTo(
+                                        canvasX + vdx - arrowSize * Math.cos(angle - Math.PI/6),
+                                        canvasY + vdy - arrowSize * Math.sin(angle - Math.PI/6)
+                                    );
+                                    ctx.lineTo(
+                                        canvasX + vdx - arrowSize * Math.cos(angle + Math.PI/6),
+                                        canvasY + vdy - arrowSize * Math.sin(angle + Math.PI/6)
+                                    );
+                                    ctx.closePath();
+                                    ctx.fillStyle = 'rgba(0, 100, 200, 0.7)';
+                                    ctx.fill();
+                                }
+                            }
+                            
+                            if (key === 'adam' && state.m) {
+                                const [mx, my] = state.m;
+                                const mMagnitude = Math.sqrt(mx*mx + my*my);
+                                
+                                if (mMagnitude > 0) {
+                                    const scale = 15 / mMagnitude;
+                                    const mdx = mx * scale;
+                                    const mdy = my * scale;
+                                    
+                                    ctx.strokeStyle = 'rgba(100, 200, 100, 0.7)';
+                                    ctx.lineWidth = 2;
+                                    ctx.beginPath();
+                                    ctx.moveTo(canvasX, canvasY);
+                                    ctx.lineTo(canvasX + mdx, canvasY + mdy);
+                                    ctx.stroke();
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Desenhar título da função
+                ctx.fillStyle = 'black';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillText(fnInfo.name, 10, 10);
+                
+                // Desenhar iteração atual
+                ctx.fillStyle = 'black';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'top';
+                ctx.fillText(`Iteração: ${iterationCount} / ${maxIterations}`, width - 10, 10);
+            };
+            
+            // Dar um passo único na otimização
+            const stepOptimization = () => {
+                if (iterationCount < maxIterations) {
+                    runOptimization();
                 }
             };
             
-            // Desenhar gráfico de perda
-            const drawLossChart = () => {
-                const canvas = lossChartRef.current;
-                if (!canvas || lossHistory.length === 0) return;
-                
-                const ctx = canvas.getContext('2d');
-                const width = canvas.width;
-                const height = canvas.height;
-                
-                // Limpar canvas
-                ctx.clearRect(0, 0, width, height);
-                
-                // Determinar maior valor de perda
-                const maxLoss = Math.max(...lossHistory);
-                const padding = 40;
-                
-                // Desenhar eixos
-                ctx.beginPath();
-                ctx.moveTo(padding, padding);
-                ctx.lineTo(padding, height - padding);
-                ctx.lineTo(width - padding, height - padding);
-                ctx.strokeStyle = "#555";
-                ctx.lineWidth = 1;
-                ctx.stroke();
-                
-                // Rótulos dos eixos
-                ctx.fillStyle = "#555";
-                ctx.font = "12px Arial";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText("Iterações", width / 2, height - 15);
-                
-                ctx.save();
-                ctx.translate(15, height / 2);
-                ctx.rotate(-Math.PI / 2);
-                ctx.textAlign = "center";
-                ctx.fillText("Erro (Loss)", 0, 0);
-                ctx.restore();
-                
-                // Desenhar linha de perda
-                if (lossHistory.length > 1) {
-                    ctx.beginPath();
-                    
-                    for (let i = 0; i < lossHistory.length; i++) {
-                        const x = padding + (i / (lossHistory.length - 1)) * (width - 2 * padding);
-                        const y = height - padding - (lossHistory[i] / maxLoss) * (height - 2 * padding);
-                        
-                        if (i === 0) {
-                            ctx.moveTo(x, y);
-                        } else {
-                            ctx.lineTo(x, y);
-                        }
-                    }
-                    
-                    ctx.strokeStyle = "#4c6ef5";
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                    
-                    // Marcar pontos
-                    for (let i = 0; i < lossHistory.length; i++) {
-                        const x = padding + (i / (lossHistory.length - 1)) * (width - 2 * padding);
-                        const y = height - padding - (lossHistory[i] / maxLoss) * (height - 2 * padding);
-                        
-                        ctx.beginPath();
-                        ctx.arc(x, y, 3, 0, Math.PI * 2);
-                        ctx.fillStyle = "#4c6ef5";
-                        ctx.fill();
-                    }
-                    
-                    // Destacar último ponto
-                    const lastX = padding + ((lossHistory.length - 1) / (lossHistory.length - 1)) * (width - 2 * padding);
-                    const lastY = height - padding - (lossHistory[lossHistory.length - 1] / maxLoss) * (height - 2 * padding);
-                    
-                    ctx.beginPath();
-                    ctx.arc(lastX, lastY, 5, 0, Math.PI * 2);
-                    ctx.fillStyle = "#f03e3e";
-                    ctx.fill();
-                    
-                    // Valor atual
-                    ctx.fillStyle = "#333";
-                    ctx.font = "12px Arial";
-                    ctx.textAlign = "left";
-                    ctx.fillText(`Erro atual: ${lossHistory[lossHistory.length - 1].toFixed(4)}`, padding, padding - 10);
-                    
-                    // Épocas
-                    ctx.fillText(`Época: ${epoch} / ${maxEpochs}`, width - padding - 100, padding - 10);
-                }
+            // Lidar com alterações de zoom e navegação
+            const handleZoomIn = () => {
+                setScaleX(prev => prev * 1.2);
+                setScaleY(prev => prev * 1.2);
+            };
+            
+            const handleZoomOut = () => {
+                setScaleX(prev => prev / 1.2);
+                setScaleY(prev => prev / 1.2);
+            };
+            
+            const handleReset = () => {
+                setScaleX(1);
+                setScaleY(1);
+                setOffsetX(0);
+                setOffsetY(0);
             };
             
             return (
-                <div className="grid">
-                    {/* Painel de controle */}
-                    <div style={{ padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-                        <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Configuração da Rede</h3>
-                        
-                        <div className="slider-container">
-                            <label>Neurônios na Camada Oculta: {architecture[1]}</label>
-                            <input
-                                type="range"
-                                min="2"
-                                max="6"
-                                value={architecture[1]}
-                                onChange={(e) => updateHiddenLayerSize(parseInt(e.target.value))}
-                                disabled={isTraining}
-                            />
+                <div>
+                    {/* Abas para alternar entre visualizações */}
+                    <div className="tabs">
+                        <div 
+                            className={`tab ${activeTab === 'contour' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('contour')}
+                        >
+                            Mapa de Contorno
                         </div>
-                        
-                        <div className="slider-container">
-                            <label>Taxa de Aprendizado: {learningRate}</label>
-                            <input
-                                type="range"
-                                min="0.01"
-                                max="0.5"
-                                step="0.01"
-                                value={learningRate}
-                                onChange={(e) => setLearningRate(parseFloat(e.target.value))}
-                                disabled={isTraining}
-                            />
-                        </div>
-                        
-                        <div className="slider-container">
-                            <label>Épocas: {maxEpochs}</label>
-                            <input
-                                type="range"
-                                min="5"
-                                max="50"
-                                step="5"
-                                value={maxEpochs}
-                                onChange={(e) => setMaxEpochs(parseInt(e.target.value))}
-                                disabled={isTraining}
-                            />
-                        </div>
-                        
-                        <div className="slider-container">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={isAnimating}
-                                    onChange={() => setIsAnimating(!isAnimating)}
-                                    disabled={isTraining}
-                                />
-                                {' '}Modo Animado
-                            </label>
-                            
-                            {isAnimating && (
-                                <div style={{ marginTop: '8px' }}>
-                                    <label>Velocidade: {animationSpeed}</label>
-                                    <input
-                                        type="range"
-                                        min="10"
-                                        max="100"
-                                        value={animationSpeed}
-                                        onChange={(e) => setAnimationSpeed(parseInt(e.target.value))}
-                                        disabled={isTraining}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                        
-                        <div style={{ marginBottom: '16px' }}>
-                            <label>Conjunto de Dados:</label>
-                            <div style={{ marginTop: '8px' }}>
-                                <button
-                                    className={`button ${datasetType === 'xor' ? 'button-selected' : ''}`}
-                                    onClick={() => setDatasetType('xor')}
-                                    disabled={isTraining}
-                                >
-                                    XOR
-                                </button>
-                                <button
-                                    className={`button ${datasetType === 'and' ? 'button-selected' : ''}`}
-                                    onClick={() => setDatasetType('and')}
-                                    disabled={isTraining}
-                                >
-                                    AND
-                                </button>
-                                <button
-                                    className={`button ${datasetType === 'or' ? 'button-selected' : ''}`}
-                                    onClick={() => setDatasetType('or')}
-                                    disabled={isTraining}
-                                >
-                                    OR
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div style={{ marginBottom: '16px' }}>
-                            <button
-                                className="button button-green"
-                                onClick={startTraining}
-                                disabled={isTraining}
-                            >
-                                {isAnimating ? "Iniciar Animação" : "Treinar Rede"}
-                            </button>
-                            <button
-                                className="button"
-                                onClick={stopTraining}
-                                disabled={!isTraining}
-                            >
-                                Parar
-                            </button>
-                            <button
-                                className="button button-red"
-                                onClick={resetTraining}
-                                disabled={isTraining}
-                            >
-                                Reiniciar
-                            </button>
-                            {!isAnimating && !isTraining && (
-                                <button
-                                    className="button"
-                                    onClick={stepForward}
-                                >
-                                    Passo a Passo
-                                </button>
-                            )}
-                        </div>
-                        
-                        {phase !== 'idle' && (
-                            <div className={`phase-label ${
-                                phase === 'forward' ? 'forward-phase' : 
-                                phase === 'backward' ? 'backward-phase' : 
-                                'update-phase'
-                            }`}>
-                                {phase === 'forward' ? 'Propagação (Forward)' : 
-                                phase === 'backward' ? 'Retropropagação (Backward)' : 
-                                'Atualização de Pesos'}
-                            </div>
-                        )}
-                        
-                        <div className="step-info">
-                            {stepInfo}
-                        </div>
-                        
-                        <div className="info-box">
-                            <strong>Legenda:</strong>
-                            <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
-                                <li>Vermelho/Azul: Peso positivo/negativo</li>
-                                <li>Laranja: Gradiente durante retropropagação</li>
-                                <li>Verde/Vermelho: Aumento/Redução de magnitude do peso</li>
-                                <li>Linha tracejada: Conexão do bias</li>
-                            </ul>
+                        <div 
+                            className={`tab ${activeTab === 'surface' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('surface')}
+                        >
+                            Superfície 3D
                         </div>
                     </div>
                     
-                    {/* Visualizações */}
-                    <div>
-                        <div style={{ marginBottom: '20px' }}>
-                            <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Rede Neural</h3>
-                            <canvas 
-                                ref={networkCanvasRef} 
-                                width={600} 
-                                height={400} 
-                                className="network-canvas"
-                            ></canvas>
+                    <div className="grid">
+                        {/* Painel de configuração */}
+                        <div style={{ padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
+                            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Configurações</h3>
+                            
+                            <div style={{ marginBottom: '16px' }}>
+                                <label>Função:</label>
+                                <div style={{ marginTop: '8px' }}>
+                                    <select 
+                                        className="button"
+                                        value={currentFunction}
+                                        onChange={(e) => setCurrentFunction(e.target.value)}
+                                        disabled={isRunning}
+                                    >
+                                        <option value="rosenbrock">Rosenbrock</option>
+                                        <option value="himmelblau">Himmelblau</option>
+                                        <option value="rastrigin">Rastrigin</option>
+                                        <option value="beale">Beale</option>
+                                    </select>
+                                </div>
+                                <p style={{ fontSize: '14px', marginTop: '8px' }}>
+                                    {functions[currentFunction].description}
+                                </p>
+                            </div>
+                            
+                            <div style={{ marginBottom: '16px' }}>
+                                <label>Otimizadores:</label>
+                                <div style={{ marginTop: '8px' }}>
+                                    <label style={{ marginRight: '16px' }}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedOptimizers.sgd}
+                                            onChange={() => setSelectedOptimizers({
+                                                ...selectedOptimizers,
+                                                sgd: !selectedOptimizers.sgd
+                                            })}
+                                        />
+                                        {' '}SGD
+                                    </label>
+                                    <label style={{ marginRight: '16px' }}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedOptimizers.momentum}
+                                            onChange={() => setSelectedOptimizers({
+                                                ...selectedOptimizers,
+                                                momentum: !selectedOptimizers.momentum
+                                            })}
+                                        />
+                                        {' '}Momentum
+                                    </label>
+                                    <label style={{ marginRight: '16px' }}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedOptimizers.rmsprop}
+                                            onChange={() => setSelectedOptimizers({
+                                                ...selectedOptimizers,
+                                                rmsprop: !selectedOptimizers.rmsprop
+                                            })}
+                                        />
+                                        {' '}RMSProp
+                                    </label>
+                                    <label>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedOptimizers.adam}
+                                            onChange={() => setSelectedOptimizers({
+                                                ...selectedOptimizers,
+                                                adam: !selectedOptimizers.adam
+                                            })}
+                                        />
+                                        {' '}Adam
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div className="control-grid">
+                                <div className="slider-container">
+                                    <label>Taxa de Aprendizado: {learningRate}</label>
+                                    <input
+                                        type="range"
+                                        min="0.001"
+                                        max="0.1"
+                                        step="0.001"
+                                        value={learningRate}
+                                        onChange={(e) => setLearningRate(parseFloat(e.target.value))}
+                                        disabled={isRunning}
+                                    />
+                                </div>
+                                
+                                <div className="slider-container">
+                                    <label>Momentum: {momentumRate}</label>
+                                    <input
+                                        type="range"
+                                        min="0.1"
+                                        max="0.99"
+                                        step="0.01"
+                                        value={momentumRate}
+                                        onChange={(e) => setMomentumRate(parseFloat(e.target.value))}
+                                        disabled={isRunning}
+                                    />
+                                </div>
+                                
+                                <div className="slider-container">
+                                    <label>Beta1 (Adam): {beta1}</label>
+                                    <input
+                                        type="range"
+                                        min="0.7"
+                                        max="0.999"
+                                        step="0.001"
+                                        value={beta1}
+                                        onChange={(e) => setBeta1(parseFloat(e.target.value))}
+                                        disabled={isRunning}
+                                    />
+                                </div>
+                                
+                                <div className="slider-container">
+                                    <label>Beta2 (Adam/RMSProp): {beta2}</label>
+                                    <input
+                                        type="range"
+                                        min="0.9"
+                                        max="0.9999"
+                                        step="0.0001"
+                                        value={beta2}
+                                        onChange={(e) => setBeta2(parseFloat(e.target.value))}
+                                        disabled={isRunning}
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="slider-container">
+                                <label>Iterações Máximas: {maxIterations}</label>
+                                <input
+                                    type="range"
+                                    min="20"
+                                    max="1000"
+                                    step="10"
+                                    value={maxIterations}
+                                    onChange={(e) => setMaxIterations(parseInt(e.target.value))}
+                                    disabled={isRunning}
+                                />
+                            </div>
+                            
+                            <div style={{ marginBottom: '16px' }}>
+                                <label>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={showVectors}
+                                        onChange={() => setShowVectors(!showVectors)}
+                                    />
+                                    {' '}Mostrar Vetores
+                                </label>
+                            </div>
+                            
+                            <div style={{ marginBottom: '16px' }}>
+                                <button
+                                    className={`button ${isRunning ? 'button-red' : 'button-green'}`}
+                                    onClick={toggleRunning}
+                                >
+                                    {isRunning ? "Parar" : "Iniciar"}
+                                </button>
+                                
+                                <button
+                                    className="button"
+                                    onClick={stepOptimization}
+                                    disabled={isRunning || iterationCount >= maxIterations}
+                                >
+                                    Passo a Passo
+                                </button>
+                                
+                                <button
+                                    className="button"
+                                    onClick={resetOptimizers}
+                                    disabled={isRunning}
+                                >
+                                    Reiniciar
+                                </button>
+                            </div>
+                            
+                            <div style={{ marginBottom: '16px' }}>
+                                <button className="button" onClick={handleZoomIn}>
+                                    Zoom +
+                                </button>
+                                <button className="button" onClick={handleZoomOut}>
+                                    Zoom -
+                                </button>
+                                <button className="button" onClick={handleReset}>
+                                    Resetar Visão
+                                </button>
+                            </div>
+                            
+                            <div className="info-box">
+                                <strong>Informações:</strong>
+                                <ul style={{ marginTop: '8px', paddingLeft: '20px', fontSize: '14px' }}>
+                                    <li>Use os controles para comparar diferentes otimizadores</li>
+                                    <li>Cada função tem características únicas que destacam os pontos fortes e fracos de cada método</li>
+                                    <li>A trajetória mostra como o otimizador se move pela superfície de erro</li>
+                                    <li>Os vetores mostram o gradiente (direção de descida) e momentum (quando ativado)</li>
+                                </ul>
+                            </div>
                         </div>
                         
+                        {/* Visualização */}
                         <div>
-                            <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Curva de Erro</h3>
-                            <canvas 
-                                ref={lossChartRef} 
-                                width={600} 
-                                height={300} 
-                                className="loss-chart"
-                            ></canvas>
+                            <div className="canvas-container">
+                                <canvas
+                                    ref={canvasRef}
+                                    width={600}
+                                    height={600}
+                                    style={{ width: '100%', height: 'auto' }}
+                                    onMouseMove={(e) => {
+                                        if (e.buttons === 1) { // Mouse primário pressionado
+                                            setOffsetX(prevOffset => prevOffset - e.movementX * (xEnd - xStart) / e.target.width);
+                                            setOffsetY(prevOffset => prevOffset - e.movementY * (yEnd - yStart) / e.target.height);
+                                        }
+                                    }}
+                                ></canvas>
+                            </div>
+                            
+                            <div className="optimizer-legend">
+                                {Object.entries(selectedOptimizers).map(([key, isSelected]) => {
+                                    if (!isSelected) return null;
+                                    
+                                    return (
+                                        <div className="legend-item" key={key}>
+                                            <div 
+                                                className="legend-color" 
+                                                style={{ backgroundColor: optimizerColors[key] }}
+                                            ></div>
+                                            <span>{key.toUpperCase()}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // Renderizar aplicação
-        ReactDOM.render(<BackpropagationDemo />, document.getElementById('app-container'));
+        // Renderizar aplicação após carregamento da página
+        document.addEventListener('DOMContentLoaded', function() {
+            ReactDOM.render(<OptimizersDemo />, document.getElementById('app-container'));
+        });
     </script>
 </body>
 </html>
