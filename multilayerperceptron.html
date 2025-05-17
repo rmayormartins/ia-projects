@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multilayer Perceptron - IFSC IA</title>
+    
+    <!-- React e ReactDOM -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    
+    <!-- Babel para JSX -->
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- TensorFlow.js para cálculos de redes neurais -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #f5f7fb;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            color: #4e54c8;
+            font-weight: 600;
+            margin-bottom: 20px;
+            transition: transform 0.2s ease;
+        }
+        
+        .back-button:hover {
+            transform: translateX(-5px);
+        }
+
+        /* Garantir que o componente seja visível */
+        #root {
+            min-height: 800px;
+            margin-bottom: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .grid-point {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            margin: -1px 0 0 -1px;
+            border-radius: 50%;
+        }
+        
+        .network-diagram {
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Voltar para Ferramentas
+        </a>
+        
+        <header class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Multilayer Perceptron</h1>
+            <p class="text-gray-600 mt-2">Explore como um perceptron multicamadas cria regiões de decisão complexas</p>
+        </header>
+        
+        <div id="root" class="p-4 rounded-lg"></div>
+        
+        <div class="mt-8 bg-white p-6 rounded-lg shadow-sm">
+            <h2 class="text-xl font-bold mb-4">Teoria do Multilayer Perceptron (MLP)</h2>
+            <p class="mb-3">O Multilayer Perceptron (MLP) é uma rede neural com múltiplas camadas de neurônios interconectados, capaz de aprender relações não-lineares complexas nos dados.</p>
+            <p class="mb-3">Enquanto um único perceptron só pode criar um hiperplano linear (uma linha reta em 2D), um MLP pode criar fronteiras de decisão complexas e não-lineares, permitindo classificar dados que não são linearmente separáveis.</p>
+            <p class="mb-3">Nesta visualização, você pode ver como a quantidade de neurônios ocultos e o número de camadas afetam a capacidade da rede de criar regiões de decisão mais complexas. A coloração do espaço de entrada representa a classe que a rede neural atribui a cada ponto.</p>
+            <p class="mb-3">A arquitetura da rede é representada à direita, mostrando como os neurônios estão conectados entre as camadas. Experimente diferentes configurações para entender melhor o poder dos MLPs!</p>
+        </div>
+        
+        <footer class="mt-12 text-center text-gray-600 text-sm">
+            <p>Desenvolvido por Ramon Mayor Martins - IFSC 2025</p>
+            <p class="mt-1">Instituto Federal de Santa Catarina - Área de Telecomunicações</p>
+        </footer>
+    </div>
+    
+    <script type="text/babel">
+        // Multilayer Perceptron Visualization
+        const MultilayerPerceptronVisualization = () => {
+          // Estado para configuração da rede e visualização
+          const [hiddenLayers, setHiddenLayers] = React.useState([4]);
+          const [layerInput, setLayerInput] = React.useState("4");
+          const [colorBackground, setColorBackground] = React.useState(true);
+          const [showDecisionBoundary, setShowDecisionBoundary] = React.useState(true);
+          const [points, setPoints] = React.useState([]);
+          const [resolution, setResolution] = React.useState(50); // Resolução da grade de visualização
+          const [activationFunction, setActivationFunction] = React.useState("sigmoid");
+          const [modelTrained, setModelTrained] = React.useState(false);
+          const [trainingProgress, setTrainingProgress] = React.useState(0);
+          const [trainingEpochs, setTrainingEpochs] = React.useState(300);
+          const [decisionColors, setDecisionColors] = React.useState([]);
+          const [weights, setWeights] = React.useState([]);
+          const [showAnimation, setShowAnimation] = React.useState(false);
+          const [animating, setAnimating] = React.useState(false);
+          const [animationProgress, setAnimationProgress] = React.useState(0);
+          const [animationInterval, setAnimationInterval] = React.useState(null);
+          
+          // Referências para canvas e visualização
+          const canvasRef = React.useRef(null);
+          const networkCanvasRef = React.useRef(null);
+          const model = React.useRef(null);
+          
+          // Gerar dados de exemplo iniciais
+          React.useEffect(() => {
+            generatePoints(150);
+          }, []);
+          
+          // Renderizar a visualização quando os dados ou configuração mudam
+          React.useEffect(() => {
+            if (points.length > 0) {
+              drawPoints();
+              if (modelTrained) {
+                visualizeDecisionBoundary();
+              }
+            }
+          }, [points, modelTrained, colorBackground, showDecisionBoundary, resolution]);
+          
+          // Renderizar a arquitetura da rede quando muda
+          React.useEffect(() => {
+            drawNetworkArchitecture();
+          }, [hiddenLayers, weights, animationProgress]);
+          
+          // Limpar o intervalo de animação quando o componente é desmontado
+          React.useEffect(() => {
+            return () => {
+              if (animationInterval) {
+                clearInterval(animationInterval);
+              }
+            };
+          }, [animationInterval]);
+          
+          // Gerar pontos para o conjunto de dados
+          const generatePoints = (count = 100) => {
+            const newPoints = [];
+            
+            // Gerar pontos azuis (classe 1) - círculo superior esquerdo
+            for (let i = 0; i < count / 4; i++) {
+              const angle = Math.random() * 2 * Math.PI;
+              const radius = 0.3 * Math.sqrt(Math.random());
+              const x = -0.5 + radius * Math.cos(angle);
+              const y = 0.5 + radius * Math.sin(angle);
+              newPoints.push({ x, y, class: 1 });
+            }
+            
+            // Gerar pontos azuis (classe 1) - círculo inferior direito
+            for (let i = 0; i < count / 4; i++) {
+              const angle = Math.random() * 2 * Math.PI;
+              const radius = 0.3 * Math.sqrt(Math.random());
+              const x = 0.5 + radius * Math.cos(angle);
+              const y = -0.5 + radius * Math.sin(angle);
+              newPoints.push({ x, y, class: 1 });
+            }
+            
+            // Gerar pontos vermelhos (classe 0) - círculo superior direito
+            for (let i = 0; i < count / 4; i++) {
+              const angle = Math.random() * 2 * Math.PI;
+              const radius = 0.3 * Math.sqrt(Math.random());
+              const x = 0.5 + radius * Math.cos(angle);
+              const y = 0.5 + radius * Math.sin(angle);
+              newPoints.push({ x, y, class: 0 });
+            }
+            
+            // Gerar pontos vermelhos (classe 0) - círculo inferior esquerdo
+            for (let i = 0; i < count / 4; i++) {
+              const angle = Math.random() * 2 * Math.PI;
+              const radius = 0.3 * Math.sqrt(Math.random());
+              const x = -0.5 + radius * Math.cos(angle);
+              const y = -0.5 + radius * Math.sin(angle);
+              newPoints.push({ x, y, class: 0 });
+            }
+            
+            setPoints(newPoints);
+            setModelTrained(false);
+            setDecisionColors([]);
+          };
+          
+          // Gerar dados de exemplo do XOR (para demonstrar necessidade de MLP)
+          const generateXORPoints = (count = 100) => {
+            const newPoints = [];
+            const jitter = 0.1;
+            
+            // Gerar pontos para XOR (não linearmente separável)
+            for (let i = 0; i < count / 4; i++) {
+              // Pontos no quadrante 1 (superior direito) - Classe 0
+              newPoints.push({ 
+                x: 0.5 + (Math.random() * jitter * 2 - jitter), 
+                y: 0.5 + (Math.random() * jitter * 2 - jitter), 
+                class: 0 
+              });
+              
+              // Pontos no quadrante 3 (inferior esquerdo) - Classe 0
+              newPoints.push({ 
+                x: -0.5 + (Math.random() * jitter * 2 - jitter), 
+                y: -0.5 + (Math.random() * jitter * 2 - jitter), 
+                class: 0 
+              });
+              
+              // Pontos no quadrante 2 (superior esquerdo) - Classe 1
+              newPoints.push({ 
+                x: -0.5 + (Math.random() * jitter * 2 - jitter), 
+                y: 0.5 + (Math.random() * jitter * 2 - jitter), 
+                class: 1 
+              });
+              
+              // Pontos no quadrante 4 (inferior direito) - Classe 1
+              newPoints.push({ 
+                x: 0.5 + (Math.random() * jitter * 2 - jitter), 
+                y: -0.5 + (Math.random() * jitter * 2 - jitter), 
+                class: 1 
+              });
+            }
+            
+            setPoints(newPoints);
+            setModelTrained(false);
+            setDecisionColors([]);
+          };
+          
+          // Desenhar os pontos no canvas
+          const drawPoints = () => {
+            if (!canvasRef.current) return;
+            
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Limpar canvas se não estiver colorindo o fundo
+            if (!colorBackground || !modelTrained || !decisionColors.length) {
+              ctx.clearRect(0, 0, width, height);
+            }
+            
+            // Desenhar eixos
+            ctx.strokeStyle = '#ccc';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, height/2);
+            ctx.lineTo(width, height/2);
+            ctx.moveTo(width/2, 0);
+            ctx.lineTo(width/2, height);
+            ctx.stroke();
+            
+            // Função para converter coordenadas
+            const mapX = x => (x + 1) * width / 2;
+            const mapY = y => height - ((y + 1) * height / 2);
+            
+            // Desenhar pontos
+            points.forEach(point => {
+              ctx.fillStyle = point.class === 1 ? 'blue' : 'red';
+              ctx.beginPath();
+              ctx.arc(mapX(point.x), mapY(point.y), 5, 0, 2 * Math.PI);
+              ctx.fill();
+              ctx.strokeStyle = '#fff';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            });
+          };
+          
+          // Criar o modelo de rede neural
+          const createModel = () => {
+            // Limpar qualquer modelo existente
+            if (model.current) {
+              model.current.dispose();
+            }
+            
+            // Criar novo modelo sequencial
+            model.current = tf.sequential();
+            
+            // Adicionar camada de entrada
+            model.current.add(tf.layers.dense({
+              units: hiddenLayers[0],
+              inputShape: [2],
+              activation: activationFunction,
+              kernelInitializer: 'heNormal'
+            }));
+            
+            // Adicionar camadas ocultas adicionais
+            for (let i = 1; i < hiddenLayers.length; i++) {
+              model.current.add(tf.layers.dense({
+                units: hiddenLayers[i],
+                activation: activationFunction,
+                kernelInitializer: 'heNormal'
+              }));
+            }
+            
+            // Adicionar camada de saída
+            model.current.add(tf.layers.dense({
+              units: 1,
+              activation: 'sigmoid',
+              kernelInitializer: 'heNormal'
+            }));
+            
+            // Compilar o modelo
+            model.current.compile({
+              optimizer: 'adam',
+              loss: 'binaryCrossentropy',
+              metrics: ['accuracy']
+            });
+          };
+          
+          // Treinar o modelo
+          const trainModel = async () => {
+            if (points.length === 0) return;
+            
+            createModel();
+            
+            // Preparar dados de treinamento
+            const inputs = points.map(p => [p.x, p.y]);
+            const outputs = points.map(p => [p.class]);
+            
+            const xs = tf.tensor2d(inputs);
+            const ys = tf.tensor2d(outputs);
+            
+            // Treinar o modelo
+            await model.current.fit(xs, ys, {
+              epochs: trainingEpochs,
+              batchSize: 32,
+              shuffle: true,
+              callbacks: {
+                onEpochEnd: (epoch, logs) => {
+                  setTrainingProgress(Math.floor(((epoch + 1) / trainingEpochs) * 100));
+                }
+              }
+            });
+            
+            // Extrair pesos para visualização
+            const extractedWeights = [];
+            for (let i = 0; i < model.current.layers.length; i++) {
+              const layerWeights = model.current.layers[i].getWeights();
+              if (layerWeights.length > 0) {
+                extractedWeights.push({
+                  weights: layerWeights[0].arraySync(), // Pesos
+                  biases: layerWeights[1].arraySync()   // Biases
+                });
+              }
+            }
+            
+            setWeights(extractedWeights);
+            
+            // Visualizar fronteira de decisão
+            await visualizeDecisionBoundary();
+            
+            // Limpar tensores para liberar memória
+            xs.dispose();
+            ys.dispose();
+            
+            setModelTrained(true);
+          };
+          
+          // Função para visualizar a fronteira de decisão
+          const visualizeDecisionBoundary = async () => {
+            if (!model.current || !canvasRef.current) return;
+            
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Se estivermos apenas desenhando a fronteira (sem colorir o fundo)
+            if (!colorBackground) {
+              drawPoints(); // Redesenhar os pontos para limpar o canvas
+            }
+            
+            // Criar grade para visualização
+            const gridSize = resolution;
+            const grid = [];
+            const gridPoints = [];
+            
+            for (let i = 0; i < gridSize; i++) {
+              for (let j = 0; j < gridSize; j++) {
+                const x = (i / (gridSize - 1)) * 2 - 1;
+                const y = (j / (gridSize - 1)) * 2 - 1;
+                grid.push([x, y]);
+                gridPoints.push({ x, y });
+              }
+            }
+            
+            // Fazer previsões para cada ponto da grade
+            const predictions = await tf.tidy(() => {
+              const gridTensor = tf.tensor2d(grid);
+              const preds = model.current.predict(gridTensor);
+              return preds.dataSync();
+            });
+            
+            // Armazenar cores para uso em animação
+            const newDecisionColors = [];
+            
+            // Desenhar a visualização da fronteira
+            if (colorBackground) {
+              // Colorir o fundo com base nas previsões
+              for (let i = 0; i < gridPoints.length; i++) {
+                const x = gridPoints[i].x;
+                const y = gridPoints[i].y;
+                const pred = predictions[i];
+                
+                // Mapear para coordenadas do canvas
+                const canvasX = ((x + 1) / 2) * width;
+                const canvasY = height - ((y + 1) / 2) * height;
+                
+                // Cor baseada na previsão (azul para classe 1, vermelho para classe 0)
+                const strength = Math.abs(pred - 0.5) * 2; // 0 na fronteira, 1 longe da fronteira
+                let r, g, b, a;
+                
+                if (pred >= 0.5) { // Classe 1 (azul)
+                  r = Math.floor(100 * (1 - strength));
+                  g = Math.floor(100 * (1 - strength));
+                  b = 255;
+                } else { // Classe 0 (vermelho)
+                  r = 255;
+                  g = Math.floor(100 * (1 - strength));
+                  b = Math.floor(100 * (1 - strength));
+                }
+                
+                a = 0.5 + (strength * 0.5); // Transparência baseada na certeza
+                
+                newDecisionColors.push({ x: canvasX, y: canvasY, color: `rgba(${r},${g},${b},${a})` });
+                
+                if (!showAnimation || animationProgress >= 100) {
+                  // Desenhar ponto da grade
+                  ctx.fillStyle = `rgba(${r},${g},${b},${a})`;
+                  ctx.fillRect(canvasX, canvasY, width/gridSize + 1, height/gridSize + 1);
+                }
+              }
+            }
+            
+            setDecisionColors(newDecisionColors);
+            
+            if (showDecisionBoundary) {
+              // Desenhar contorno da fronteira de decisão (onde a previsão é 0.5)
+              ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+              ctx.lineWidth = 2;
+              
+              // Encontrar pontos onde a previsão está próxima de 0.5 (fronteira)
+              const boundaryPoints = [];
+              for (let i = 0; i < gridPoints.length; i++) {
+                if (Math.abs(predictions[i] - 0.5) < 0.1) {
+                  const x = ((gridPoints[i].x + 1) / 2) * width;
+                  const y = height - ((gridPoints[i].y + 1) / 2) * height;
+                  boundaryPoints.push({ x, y });
+                }
+              }
+              
+              // Conectar pontos da fronteira
+              if (boundaryPoints.length > 0) {
+                // Ordenar pontos para desenhar uma linha contínua
+                // (Algoritmo básico, não perfeito para todos os casos)
+                const orderedPoints = [boundaryPoints[0]];
+                const remaining = boundaryPoints.slice(1);
+                const threshold = width/gridSize * 2;
+                
+                while (remaining.length > 0) {
+                  const current = orderedPoints[orderedPoints.length - 1];
+                  let closest = 0;
+                  let minDist = Infinity;
+                  
+                  for (let i = 0; i < remaining.length; i++) {
+                    const dist = Math.sqrt(
+                      Math.pow(current.x - remaining[i].x, 2) + 
+                      Math.pow(current.y - remaining[i].y, 2)
+                    );
+                    
+                    if (dist < minDist) {
+                      minDist = dist;
+                      closest = i;
+                    }
+                  }
+                  
+                  // Se o ponto mais próximo estiver muito longe, começar um novo traço
+                  if (minDist > threshold) {
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(remaining[closest].x, remaining[closest].y);
+                  } else {
+                    ctx.lineTo(remaining[closest].x, remaining[closest].y);
+                  }
+                  
+                  orderedPoints.push(remaining[closest]);
+                  remaining.splice(closest, 1);
+                }
+                
+                ctx.stroke();
+              }
+            }
+            
+            // Redesenhar pontos por cima da visualização
+            drawPoints();
+          };
+          
+          // Desenhar a arquitetura da rede neural
+          const drawNetworkArchitecture = () => {
+            if (!networkCanvasRef.current) return;
+            
+            const canvas = networkCanvasRef.current;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            // Definir camadas (entrada, ocultas, saída)
+            const architecture = [2, ...hiddenLayers, 1];
+            const layers = architecture.length;
+            
+            // Dimensões e posicionamento
+            const neuronRadius = 15;
+            const horizontalSpacing = width / (layers + 1);
+            
+            // Desenhar conexões entre camadas
+            for (let l = 0; l < layers - 1; l++) {
+              const leftLayer = architecture[l];
+              const rightLayer = architecture[l + 1];
+              
+              const leftX = horizontalSpacing * (l + 1);
+              const rightX = horizontalSpacing * (l + 2);
+              
+              const leftLayerTop = height / 2 - (leftLayer * neuronRadius * 2.5) / 2;
+              const rightLayerTop = height / 2 - (rightLayer * neuronRadius * 2.5) / 2;
+              
+              for (let i = 0; i < leftLayer; i++) {
+                const startY = leftLayerTop + i * neuronRadius * 2.5 + neuronRadius;
+                
+                for (let j = 0; j < rightLayer; j++) {
+                  const endY = rightLayerTop + j * neuronRadius * 2.5 + neuronRadius;
+                  
+                  // Calcular cor e espessura com base nos pesos (se disponíveis)
+                  let lineWidth = 1;
+                  let strokeStyle = "#ccc";
+                  
+                  if (weights.length > l && animationProgress > 0) {
+                    // Se temos pesos treinados, usar para a visualização
+                    const weight = weights[l].weights[i][j];
+                    const normalizedProgress = Math.min(1, animationProgress / 100);
+                    
+                    // Interpolar entre peso inicial (0) e peso final
+                    const progressWeight = weight * normalizedProgress;
+                    
+                    // Cor baseada no peso (positivo = verde, negativo = vermelho)
+                    const absWeight = Math.abs(progressWeight);
+                    lineWidth = Math.max(0.5, Math.min(5, absWeight * 3));
+                    
+                    if (progressWeight > 0) {
+                      strokeStyle = `rgba(0, 128, 0, ${Math.min(1, absWeight)})`;
+                    } else {
+                      strokeStyle = `rgba(255, 0, 0, ${Math.min(1, absWeight)})`;
+                    }
+                  }
+                  
+                  // Desenhar conexão
+                  ctx.beginPath();
+                  ctx.moveTo(leftX, startY);
+                  ctx.lineTo(rightX, endY);
+                  ctx.lineWidth = lineWidth;
+                  ctx.strokeStyle = strokeStyle;
+                  ctx.stroke();
+                }
+              }
+            }
+            
+            // Desenhar neurônios em cada camada
+            for (let l = 0; l < layers; l++) {
+              const numNeurons = architecture[l];
+              const layerX = horizontalSpacing * (l + 1);
+              const layerTop = height / 2 - (numNeurons * neuronRadius * 2.5) / 2;
+              
+              ctx.fillStyle = l === 0 ? "#f0f0f0" : l === layers - 1 ? "#e6f7ff" : "#f5f5f5";
+              ctx.strokeStyle = "#aaa";
+              ctx.lineWidth = 1;
+              
+              for (let i = 0; i < numNeurons; i++) {
+                const y = layerTop + i * neuronRadius * 2.5 + neuronRadius;
+                
+                // Desenhar círculo do neurônio
+                ctx.beginPath();
+                ctx.arc(layerX, y, neuronRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Adicionar texto
+                ctx.fillStyle = "#333";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.font = "10px Arial";
+                
+                let label = "";
+                if (l === 0) {
+                  label = i === 0 ? "x₁" : "x₂";
+                } else if (l === layers - 1) {
+                  label = "y";
+                } else {
+                  label = `h${l}_${i+1}`;
+                }
+                
+                ctx.fillText(label, layerX, y);
+                
+                // Adicionar valor de bias (se disponível) para camadas ocultas e saída
+                if (l > 0 && weights.length >= l && animationProgress > 0) {
+                  const bias = weights[l-1].biases[i] || 0;
+                  const normalizedProgress = Math.min(1, animationProgress / 100);
+                  const progressBias = bias * normalizedProgress;
+                  
+                  const biasText = progressBias.toFixed(1);
+                  ctx.font = "8px Arial";
+                  ctx.fillStyle = progressBias > 0 ? "green" : "red";
+                  ctx.fillText(biasText, layerX, y + neuronRadius + 8);
+                }
+              }
+              
+              // Adicionar rótulo da camada
+              ctx.fillStyle = "#555";
+              ctx.font = "12px Arial";
+              let layerLabel = "";
+              if (l === 0) {
+                layerLabel = "Entrada";
+              } else if (l === layers - 1) {
+                layerLabel = "Saída";
+              } else {
+                layerLabel = `Oculta ${l}`;
+              }
+              ctx.fillText(layerLabel, layerX, height - 10);
+            }
+          };
+          
+          // Iniciar animação dos pesos
+          const startAnimation = () => {
+            if (animating || !modelTrained) return;
+            
+            setAnimating(true);
+            setAnimationProgress(0);
+            
+            // Resetar visualização
+            if (canvasRef.current) {
+              const canvas = canvasRef.current;
+              const ctx = canvas.getContext('2d');
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            const interval = setInterval(() => {
+              setAnimationProgress(prev => {
+                if (prev >= 100) {
+                  clearInterval(interval);
+                  setAnimating(false);
+                  return 100;
+                }
+                return prev + 1;
+              });
+            }, 30);
+            
+            setAnimationInterval(interval);
+          };
+          
+          // Atualizar a lista de camadas ocultas
+          const updateHiddenLayers = () => {
+            try {
+              const layersArray = layerInput.split(',').map(l => parseInt(l.trim()));
+              if (layersArray.every(l => !isNaN(l) && l > 0 && l <= 10)) {
+                setHiddenLayers(layersArray);
+                setModelTrained(false);
+              }
+            } catch (error) {
+              console.error("Formato inválido para camadas ocultas");
+            }
+          };
+          
+          // Animar visualização durante progressão de época
+          React.useEffect(() => {
+            if (showAnimation && colorBackground && decisionColors.length > 0) {
+              // Desenhar a visualização com base no progresso da animação
+              const canvas = canvasRef.current;
+              if (!canvas) return;
+              
+              const ctx = canvas.getContext('2d');
+              const width = canvas.width;
+              const height = canvas.height;
+              
+              ctx.clearRect(0, 0, width, height);
+              
+              const progress = animationProgress / 100;
+              const pointsToShow = Math.floor(decisionColors.length * progress);
