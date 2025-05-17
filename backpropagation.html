@@ -6,8 +6,8 @@
     <title>Visualização do Backpropagation - IFSC IA</title>
     
     <!-- React e ReactDOM -->
-    <script src="https://unpkg.com/react@17/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
     
     <!-- Babel para JSX -->
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js" crossorigin></script>
@@ -110,19 +110,9 @@
             }
         }
         
-        .network-canvas {
+        canvas {
             border: 1px solid #dee2e6;
             border-radius: 4px;
-            width: 100%;
-            height: 300px;
-            background-color: white;
-        }
-        
-        .loss-chart {
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            width: 100%;
-            height: 200px;
             background-color: white;
         }
         
@@ -201,13 +191,13 @@
     </div>
     
     <script type="text/babel">
-        // Componente principal
+        // Componente principal do Backpropagation
         const BackpropagationDemo = () => {
-            // Estado da rede
+            // Estados
             const [architecture, setArchitecture] = React.useState([2, 3, 1]);
             const [weights, setWeights] = React.useState([]);
             const [gradients, setGradients] = React.useState([]);
-            const [phase, setPhase] = React.useState('idle'); // 'idle', 'forward', 'backward', 'update'
+            const [phase, setPhase] = React.useState('idle');
             const [epoch, setEpoch] = React.useState(0);
             const [iteration, setIteration] = React.useState(0);
             const [maxEpochs, setMaxEpochs] = React.useState(20);
@@ -217,50 +207,53 @@
             const [lossHistory, setLossHistory] = React.useState([]);
             const [animationSpeed, setAnimationSpeed] = React.useState(50);
             const [isTraining, setIsTraining] = React.useState(false);
-            const [isAnimating, setIsAnimating] = React.useState(false);
+            const [isAnimating, setIsAnimating] = React.useState(true);
             const [stepInfo, setStepInfo] = React.useState('');
             const [datasetType, setDatasetType] = React.useState('xor');
             
-            // Refs para canvas
+            // Refs
             const networkCanvasRef = React.useRef(null);
             const lossChartRef = React.useRef(null);
-            
-            // Refs para animação
             const animationIntervalRef = React.useRef(null);
             const phaseTimeoutRef = React.useRef(null);
             
-            // Função de ativação sigmoid e sua derivada
+            // Funções de ativação
             const sigmoid = x => 1 / (1 + Math.exp(-x));
             const sigmoidDerivative = x => {
                 const sig = sigmoid(x);
                 return sig * (1 - sig);
             };
             
-            // Inicializar pesos quando a arquitetura muda
+            // Inicializar pesos e dados de treinamento quando a arquitetura ou o problema muda
             React.useEffect(() => {
                 initializeWeights();
                 generateTrainingData();
             }, [architecture, datasetType]);
             
-            // Desenhar visualizações quando estado muda
+            // Atualizar as visualizações quando os dados relevantes mudam
             React.useEffect(() => {
-                if (networkCanvasRef.current && lossChartRef.current) {
-                    drawNetwork();
-                    drawLossChart();
-                }
-            }, [weights, gradients, phase, trainingData, currentExample, lossHistory]);
+                drawNetwork();
+                drawLossChart();
+            }, [weights, gradients, phase, lossHistory]);
             
-            // Limpar intervalos quando componente desmonta
+            // Limpar intervalos de animação quando o componente é desmontado
             React.useEffect(() => {
                 return () => {
-                    if (animationIntervalRef.current) {
-                        clearInterval(animationIntervalRef.current);
-                    }
-                    if (phaseTimeoutRef.current) {
-                        clearTimeout(phaseTimeoutRef.current);
-                    }
+                    clearAnimationTimers();
                 };
             }, []);
+            
+            // Limpar timers de animação
+            const clearAnimationTimers = () => {
+                if (animationIntervalRef.current) {
+                    clearInterval(animationIntervalRef.current);
+                    animationIntervalRef.current = null;
+                }
+                if (phaseTimeoutRef.current) {
+                    clearTimeout(phaseTimeoutRef.current);
+                    phaseTimeoutRef.current = null;
+                }
+            };
             
             // Inicializar pesos aleatoriamente
             const initializeWeights = () => {
@@ -271,7 +264,7 @@
                     const layerWeights = [];
                     const layerGradients = [];
                     
-                    for (let j = 0; j < architecture[i]; j++) {
+                    for (let j = 0; j < architecture[i] + 1; j++) { // +1 para o bias
                         const neuronWeights = [];
                         const neuronGradients = [];
                         
@@ -286,18 +279,6 @@
                         layerGradients.push(neuronGradients);
                     }
                     
-                    // Adicionar bias
-                    const biasWeights = [];
-                    const biasGradients = [];
-                    
-                    for (let k = 0; k < architecture[i+1]; k++) {
-                        biasWeights.push((Math.random() * 0.2) - 0.1);
-                        biasGradients.push(0);
-                    }
-                    
-                    layerWeights.push(biasWeights);
-                    layerGradients.push(biasGradients);
-                    
                     newWeights.push(layerWeights);
                     newGradients.push(layerGradients);
                 }
@@ -309,7 +290,7 @@
                 setIteration(0);
             };
             
-            // Gerar dados de treinamento
+            // Gerar dados de treinamento para diferentes problemas lógicos
             const generateTrainingData = () => {
                 if (datasetType === 'xor') {
                     setTrainingData([
@@ -337,7 +318,14 @@
                 }
             };
             
-            // Função forward pass
+            // Atualizar número de neurônios na camada oculta
+            const updateHiddenLayerSize = (size) => {
+                const newArchitecture = [...architecture];
+                newArchitecture[1] = size;
+                setArchitecture(newArchitecture);
+            };
+            
+            // Forward pass - propagar entrada pela rede
             const forwardPass = (inputs) => {
                 let activations = [inputs.concat(1)]; // Adicionar bias
                 let weightedSums = [];
@@ -370,7 +358,7 @@
                 return { activations, weightedSums };
             };
             
-            // Calcular o MSE (Mean Squared Error)
+            // Calcular erro (Mean Squared Error)
             const calculateLoss = (outputs, targets) => {
                 let sum = 0;
                 for (let i = 0; i < outputs.length; i++) {
@@ -379,7 +367,7 @@
                 return sum / outputs.length;
             };
             
-            // Backward pass (backpropagation)
+            // Backward pass - retropropagar o erro
             const backwardPass = (activations, weightedSums, targets) => {
                 const newGradients = JSON.parse(JSON.stringify(gradients));
                 
@@ -449,6 +437,8 @@
                     setPhase('forward');
                     setStepInfo(`Fase Forward - Exemplo ${currentExample + 1}/${trainingData.length}: [${example.inputs.join(', ')}] => ${example.target.join(', ')}`);
                     
+                    const delay = isAnimating ? 1000 - animationSpeed * 8 : 0;
+                    
                     phaseTimeoutRef.current = setTimeout(() => {
                         const { activations, weightedSums } = forwardPass(example.inputs);
                         const outputs = activations[activations.length - 1];
@@ -500,9 +490,9 @@
                                 if (!isAnimating) {
                                     trainStep();
                                 }
-                            }, isAnimating ? 1000 - animationSpeed * 8 : 0);
-                        }, isAnimating ? 1000 - animationSpeed * 8 : 0);
-                    }, isAnimating ? 1000 - animationSpeed * 8 : 0);
+                            }, delay);
+                        }, delay);
+                    }, delay);
                 }
             };
             
@@ -512,7 +502,14 @@
                 
                 if (isAnimating) {
                     trainStep();
+                    
+                    animationIntervalRef.current = setInterval(() => {
+                        if (phase === 'idle') {
+                            trainStep();
+                        }
+                    }, 100);
                 } else {
+                    // Treinamento rápido sem animação
                     animationIntervalRef.current = setInterval(() => {
                         trainStep();
                     }, 10);
@@ -522,16 +519,7 @@
             // Parar treinamento
             const stopTraining = () => {
                 setIsTraining(false);
-                
-                if (animationIntervalRef.current) {
-                    clearInterval(animationIntervalRef.current);
-                    animationIntervalRef.current = null;
-                }
-                
-                if (phaseTimeoutRef.current) {
-                    clearTimeout(phaseTimeoutRef.current);
-                    phaseTimeoutRef.current = null;
-                }
+                clearAnimationTimers();
             };
             
             // Reiniciar treinamento
@@ -558,6 +546,10 @@
                 const canvas = networkCanvasRef.current;
                 if (!canvas) return;
                 
+                // Garantir que o tamanho do canvas esteja definido
+                if (!canvas.width) canvas.width = 500;
+                if (!canvas.height) canvas.height = 300;
+                
                 const ctx = canvas.getContext('2d');
                 const width = canvas.width;
                 const height = canvas.height;
@@ -565,7 +557,7 @@
                 // Limpar canvas
                 ctx.clearRect(0, 0, width, height);
                 
-                // Calcular posições e dimensões
+                // Calcular posições
                 const layerSpacing = width / (architecture.length + 1);
                 const maxNeurons = Math.max(...architecture);
                 const neuronRadius = 15;
@@ -582,13 +574,13 @@
                     const leftLayerTop = height / 2 - (leftLayerSize * neuronSpacing) / 2;
                     const rightLayerTop = height / 2 - (rightLayerSize * neuronSpacing) / 2;
                     
+                    // Conexões regulares
                     for (let i = 0; i < leftLayerSize; i++) {
                         const startY = leftLayerTop + i * neuronSpacing;
                         
                         for (let j = 0; j < rightLayerSize; j++) {
                             const endY = rightLayerTop + j * neuronSpacing;
                             
-                            // Cores baseadas nos pesos e fase
                             let weight = weights[l]?.[i]?.[j] || 0;
                             let gradient = gradients[l]?.[i]?.[j] || 0;
                             
@@ -601,36 +593,25 @@
                                 lineWidth = 1 + absWeight * 3;
                                 
                                 if (weight > 0) {
-                                    const g = Math.floor(200 * (1 - Math.min(1, absWeight)));
-                                    const b = Math.floor(200 * (1 - Math.min(1, absWeight)));
-                                    strokeColor = `rgb(200, ${g}, ${b})`;
+                                    strokeColor = `rgba(200, 0, 0, ${Math.min(1, absWeight)})`;
                                 } else {
-                                    const r = Math.floor(200 * (1 - Math.min(1, absWeight)));
-                                    const g = Math.floor(200 * (1 - Math.min(1, absWeight)));
-                                    strokeColor = `rgb(${r}, ${g}, 200)`;
+                                    strokeColor = `rgba(0, 0, 200, ${Math.min(1, absWeight)})`;
                                 }
                             } else if (phase === 'backward') {
                                 // Cor baseada no gradiente
                                 const absGradient = Math.abs(gradient);
-                                lineWidth = 1 + absGradient * 20; // Gradientes são geralmente menores que pesos
+                                lineWidth = 1 + absGradient * 20;
                                 
-                                if (gradient > 0) {
-                                    strokeColor = `rgba(255, 165, 0, ${Math.min(1, absGradient * 5)})`; // Laranja
-                                } else {
-                                    strokeColor = `rgba(138, 43, 226, ${Math.min(1, absGradient * 5)})`; // Roxo
-                                }
+                                strokeColor = `rgba(255, 165, 0, ${Math.min(1, absGradient * 5)})`;
                             } else if (phase === 'update') {
-                                // Cor combinando peso e gradiente
-                                const absWeight = Math.abs(weight);
+                                // Cor indicando direção da atualização
                                 const absGradient = Math.abs(gradient);
-                                lineWidth = 1 + absWeight * 3;
+                                lineWidth = 1 + absGradient * 10;
                                 
                                 if (weight > 0 && gradient > 0 || weight < 0 && gradient < 0) {
-                                    // Peso vai diminuir em magnitude
-                                    strokeColor = `rgba(255, 0, 0, ${Math.min(1, absGradient * 5)})`; // Vermelho
+                                    strokeColor = `rgba(255, 0, 0, ${Math.min(1, absGradient * 5)})`;
                                 } else {
-                                    // Peso vai aumentar em magnitude
-                                    strokeColor = `rgba(0, 255, 0, ${Math.min(1, absGradient * 5)})`; // Verde
+                                    strokeColor = `rgba(0, 255, 0, ${Math.min(1, absGradient * 5)})`;
                                 }
                             }
                             
@@ -657,14 +638,15 @@
                         }
                     }
                     
-                    // Adicionar bias connections
+                    // Conexões de bias
+                    const biasIndex = leftLayerSize; // O último índice é o bias
                     const biasY = leftLayerTop + leftLayerSize * neuronSpacing;
                     
                     for (let j = 0; j < rightLayerSize; j++) {
                         const endY = rightLayerTop + j * neuronSpacing;
                         
-                        let weight = weights[l]?.[leftLayerSize]?.[j] || 0;
-                        let gradient = gradients[l]?.[leftLayerSize]?.[j] || 0;
+                        let weight = weights[l]?.[biasIndex]?.[j] || 0;
+                        let gradient = gradients[l]?.[biasIndex]?.[j] || 0;
                         
                         let strokeColor = "#ccc";
                         let lineWidth = 1;
@@ -695,13 +677,13 @@
                         }
                         
                         ctx.beginPath();
-                        ctx.setLineDash([3, 3]);
+                        ctx.setLineDash([3, 3]); // Linha tracejada para bias
                         ctx.moveTo(leftX, biasY);
                         ctx.lineTo(rightX, endY);
                         ctx.strokeStyle = strokeColor;
                         ctx.lineWidth = lineWidth;
                         ctx.stroke();
-                        ctx.setLineDash([]);
+                        ctx.setLineDash([]); // Resetar para linha sólida
                         
                         // Mostrar valor do bias
                         const textX = (leftX + rightX) / 2;
@@ -725,10 +707,11 @@
                     const x = layerSpacing * (l + 1);
                     const layerTop = height / 2 - (layerSize * neuronSpacing) / 2;
                     
+                    // Neurônios regulares
                     for (let i = 0; i < layerSize; i++) {
                         const y = layerTop + i * neuronSpacing;
                         
-                        // Desenhar círculo
+                        // Círculo do neurônio
                         ctx.beginPath();
                         ctx.arc(x, y, neuronRadius, 0, Math.PI * 2);
                         ctx.fillStyle = '#f8f9fa';
@@ -737,7 +720,7 @@
                         ctx.fill();
                         ctx.stroke();
                         
-                        // Adicionar rótulo
+                        // Rótulo do neurônio
                         ctx.font = "12px Arial";
                         ctx.fillStyle = "#333";
                         ctx.textAlign = "center";
@@ -748,14 +731,15 @@
                         } else if (l === architecture.length - 1) {
                             ctx.fillText(`y${i+1}`, x, y);
                         } else {
-                            ctx.fillText(`h${l}_${i+1}`, x, y);
+                            ctx.fillText(`h${i+1}`, x, y);
                         }
                     }
                     
-                    // Desenhar bias se não for a última camada
+                    // Desenhar bias (exceto na última camada)
                     if (l < architecture.length - 1) {
                         const biasY = layerTop + layerSize * neuronSpacing;
                         
+                        // Círculo do bias
                         ctx.beginPath();
                         ctx.arc(x, biasY, neuronRadius, 0, Math.PI * 2);
                         ctx.fillStyle = '#fff3bf';
@@ -764,19 +748,24 @@
                         ctx.fill();
                         ctx.stroke();
                         
+                        // Rótulo do bias
                         ctx.font = "12px Arial";
                         ctx.fillStyle = "#333";
                         ctx.textAlign = "center";
                         ctx.textBaseline = "middle";
-                        ctx.fillText(`b${l+1}`, x, biasY);
+                        ctx.fillText(`+1`, x, biasY);
                     }
                 }
             };
             
-            // Desenhar gráfico de perda
+            // Desenhar gráfico de perda (loss chart)
             const drawLossChart = () => {
                 const canvas = lossChartRef.current;
                 if (!canvas || lossHistory.length === 0) return;
+                
+                // Garantir que o tamanho do canvas esteja definido
+                if (!canvas.width) canvas.width = 500;
+                if (!canvas.height) canvas.height = 200;
                 
                 const ctx = canvas.getContext('2d');
                 const width = canvas.width;
@@ -785,13 +774,14 @@
                 // Limpar canvas
                 ctx.clearRect(0, 0, width, height);
                 
-                // Calcular escalas
+                // Definir margens
                 const padding = 30;
                 const chartWidth = width - 2 * padding;
                 const chartHeight = height - 2 * padding;
                 
+                // Encontrar valores máximo e mínimo do erro
                 const maxLoss = Math.max(...lossHistory, 1);
-                const minLoss = 0;
+                const minLoss = Math.min(...lossHistory, 0);
                 
                 // Desenhar eixos
                 ctx.beginPath();
@@ -813,7 +803,7 @@
                 ctx.textBaseline = "middle";
                 ctx.fillText("Erro", padding - 10, height / 2);
                 
-                // Desenhar linha de perda
+                // Desenhar linha de erro
                 if (lossHistory.length > 1) {
                     ctx.beginPath();
                     
@@ -833,20 +823,22 @@
                     ctx.stroke();
                 }
                 
-                // Desenhar valor atual
+                // Mostrar valor atual do erro
                 const currentLoss = lossHistory[lossHistory.length - 1];
                 ctx.font = "14px Arial";
                 ctx.fillStyle = "#fa5252";
                 ctx.textAlign = "left";
                 ctx.textBaseline = "top";
-                ctx.fillText(`Erro: ${currentLoss.toFixed(4)}`, padding + 10, padding + 10);
+                ctx.fillText(`Erro atual: ${currentLoss.toFixed(4)}`, padding + 10, padding + 10);
             };
             
-            // Interface do usuário
+            // Renderização do componente
             return (
                 <div>
                     <div className="info-box">
-                        <p>Esta visualização mostra como o algoritmo de retropropagação (backpropagation) funciona. Você pode controlar a animação, escolher diferentes problemas e ver como os pesos são atualizados para minimizar o erro.</p>
+                        <p>Esta visualização mostra como o algoritmo de retropropagação (backpropagation) funciona. 
+                        Você pode escolher diferentes problemas lógicos (XOR, AND, OR), ajustar os parâmetros da rede 
+                        e observar como os pesos são atualizados durante o treinamento para minimizar o erro.</p>
                     </div>
                     
                     <div className="grid">
@@ -858,18 +850,21 @@
                                 <button 
                                     className={`button ${datasetType === 'xor' ? 'button-selected' : ''}`}
                                     onClick={() => setDatasetType('xor')}
+                                    disabled={isTraining}
                                 >
                                     XOR
                                 </button>
                                 <button 
                                     className={`button ${datasetType === 'and' ? 'button-selected' : ''}`}
                                     onClick={() => setDatasetType('and')}
+                                    disabled={isTraining}
                                 >
                                     AND
                                 </button>
                                 <button 
                                     className={`button ${datasetType === 'or' ? 'button-selected' : ''}`}
                                     onClick={() => setDatasetType('or')}
+                                    disabled={isTraining}
                                 >
                                     OR
                                 </button>
@@ -968,12 +963,6 @@
                                 </div>
                             </div>
                             
-                            {stepInfo && (
-                                <div className="step-info">
-                                    {stepInfo}
-                                </div>
-                            )}
-                            
                             {phase !== 'idle' && (
                                 <div style={{ marginTop: '10px' }}>
                                     <div 
@@ -990,6 +979,12 @@
                                 </div>
                             )}
                             
+                            {stepInfo && (
+                                <div className="step-info">
+                                    {stepInfo}
+                                </div>
+                            )}
+                            
                             <div style={{ marginTop: '10px' }}>
                                 <p>Época: {epoch}/{maxEpochs}</p>
                                 <p>Iteração: {iteration}</p>
@@ -1002,7 +997,6 @@
                                 <h4>Rede Neural</h4>
                                 <canvas 
                                     ref={networkCanvasRef} 
-                                    className="network-canvas" 
                                     width={500} 
                                     height={300}
                                 />
@@ -1011,7 +1005,6 @@
                                 <h4>Erro ao Longo do Tempo</h4>
                                 <canvas 
                                     ref={lossChartRef} 
-                                    className="loss-chart" 
                                     width={500} 
                                     height={200}
                                 />
@@ -1022,12 +1015,22 @@
             );
         };
         
-        // Renderizar o componente no DOM
-        ReactDOM.render(
-            <BackpropagationDemo />,
-            document.getElementById('app-container')
-        );
+        // Renderizar o componente na página
+        try {
+            ReactDOM.render(
+                <BackpropagationDemo />,
+                document.getElementById('app-container')
+            );
+            console.log("Componente de visualização do Backpropagation renderizado com sucesso!");
+        } catch (error) {
+            console.error("Erro ao renderizar o componente:", error);
+            document.getElementById('app-container').innerHTML = 
+                `<div style="color: red; padding: 20px;">
+                    <h3>Erro ao carregar a visualização</h3>
+                    <p>${error.message}</p>
+                    <p>Tente atualizar a página. Se o problema persistir, verifique o console para mais detalhes.</p>
+                </div>`;
+        }
     </script>
 </body>
 </html>
-                
