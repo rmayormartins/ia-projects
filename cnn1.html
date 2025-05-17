@@ -643,46 +643,70 @@
         
         // Desenhar forma básica
         ctx.fillStyle = 'black';
+        ctx.strokeStyle = 'black';
         
         switch (preset) {
           case 'horizontal':
-            ctx.fillRect(canvas.width * 0.2, canvas.height * 0.5 - 2, canvas.width * 0.6, 4);
+            // Desenhar uma linha horizontal mais grossa para melhor detecção
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.2, canvas.height * 0.5);
+            ctx.lineTo(canvas.width * 0.8, canvas.height * 0.5);
+            ctx.stroke();
             break;
           case 'vertical':
-            ctx.fillRect(canvas.width * 0.5 - 2, canvas.height * 0.2, 4, canvas.height * 0.6);
+            // Desenhar uma linha vertical mais grossa para melhor detecção
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.5, canvas.height * 0.2);
+            ctx.lineTo(canvas.width * 0.5, canvas.height * 0.8);
+            ctx.stroke();
             break;
           case 'square':
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(canvas.width * 0.25, canvas.height * 0.25, canvas.width * 0.5, canvas.height * 0.5);
+            // Desenhar um quadrado preenchido para melhor detecção
+            ctx.fillRect(canvas.width * 0.25, canvas.height * 0.25, canvas.width * 0.5, canvas.height * 0.5);
             break;
           case 'circle':
+            ctx.lineWidth = 5;
             ctx.beginPath();
             ctx.arc(canvas.width * 0.5, canvas.height * 0.5, canvas.width * 0.3, 0, Math.PI * 2);
             ctx.stroke();
             break;
           case 'cross':
-            ctx.fillRect(canvas.width * 0.2, canvas.height * 0.5 - 2, canvas.width * 0.6, 4);
-            ctx.fillRect(canvas.width * 0.5 - 2, canvas.height * 0.2, 4, canvas.height * 0.6);
+            // Desenhar uma cruz mais grossa
+            ctx.lineWidth = 6;
+            
+            // Linha horizontal
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.2, canvas.height * 0.5);
+            ctx.lineTo(canvas.width * 0.8, canvas.height * 0.5);
+            ctx.stroke();
+            
+            // Linha vertical
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.5, canvas.height * 0.2);
+            ctx.lineTo(canvas.width * 0.5, canvas.height * 0.8);
+            ctx.stroke();
             break;
           case 'diagonal':
+            ctx.lineWidth = 6;
             ctx.beginPath();
             ctx.moveTo(canvas.width * 0.2, canvas.height * 0.2);
             ctx.lineTo(canvas.width * 0.8, canvas.height * 0.8);
-            ctx.lineWidth = 3;
             ctx.stroke();
             break;
           case 'triangle':
+            // Desenhar um triângulo preenchido para melhor detecção
             ctx.beginPath();
             ctx.moveTo(canvas.width * 0.5, canvas.height * 0.2);
             ctx.lineTo(canvas.width * 0.8, canvas.height * 0.8);
             ctx.lineTo(canvas.width * 0.2, canvas.height * 0.8);
             ctx.closePath();
-            ctx.lineWidth = 3;
-            ctx.stroke();
+            ctx.fill();
             break;
           case 'grid':
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 5;
+            
             // Linhas horizontais
             for (let i = 1; i < 3; i++) {
               ctx.beginPath();
@@ -690,6 +714,7 @@
               ctx.lineTo(canvas.width * 0.8, canvas.height * (i * 0.25 + 0.25));
               ctx.stroke();
             }
+            
             // Linhas verticais
             for (let i = 1; i < 3; i++) {
               ctx.beginPath();
@@ -702,10 +727,8 @@
             break;
         }
         
-        // Atualizar processamento
-        setTimeout(() => {
-          applyProcessing();
-        }, 100);
+        // Atualizar processamento imediatamente
+        applyProcessing();
       };
       
       // Atualizar valor do kernel personalizado
@@ -874,11 +897,7 @@
                 />
               </div>
               
-              <button className="button" onClick={applyProcessing}>
-                Processar Imagem
-              </button>
-              
-              <div className="grid-layout" style={{ marginTop: '20px' }}>
+              <div className="grid-layout" style={{ marginTop: '20px' }}>>
                 <div className="canvas-wrapper">
                   <div className="canvas-title">Saída da Camada Convolucional + ReLU</div>
                   <canvas
