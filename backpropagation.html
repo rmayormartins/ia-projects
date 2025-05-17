@@ -9,20 +9,23 @@
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background-color: #f0f2f5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background-color: #f5f7fb;
+      padding: 20px;
       margin: 0;
-      padding: 0;
+      color: #333;
     }
     .container {
-      padding: 20px;
-      max-width: 900px;
+      max-width: 1000px;
       margin: auto;
+      padding: 20px;
     }
-    canvas {
-      border: 1px solid #ccc;
-      margin-top: 20px;
-      background-color: #fff;
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
     }
     .button {
       padding: 10px 15px;
@@ -33,74 +36,811 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      transition: background-color 0.3s;
     }
     .button:hover {
       background-color: #45a049;
+    }
+    .button-reset {
+      background-color: #f44336;
+    }
+    .button-reset:hover {
+      background-color: #d32f2f;
+    }
+    .button-step {
+      background-color: #2196f3;
+    }
+    .button-step:hover {
+      background-color: #0b7dda;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      margin-top: 20px;
+      background-color: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border-radius: 4px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .slider-container {
+      flex: 1;
+      min-width: 200px;
+      margin-bottom: 10px;
+    }
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+    .slider {
+      width: 100%;
+    }
+    .neural-network {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .logs {
+      font-family: monospace;
+      max-height: 150px;
+      overflow-y: auto;
+      background-color: #f8f9fa;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      margin-top: 20px;
+    }
+    .logs p {
+      margin: 5px 0;
+      font-size: 14px;
+    }
+    .training-data-option {
+      margin-bottom: 10px;
+    }
+    .explanation {
+      background-color: #e7f3fe;
+      border-left: 6px solid #2196F3;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 768px) {
+      .grid-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+    .gradient-animation {
+      animation: gradientFlow 2s forwards;
+    }
+    @keyframes gradientFlow {
+      0% { stroke: rgba(255, 0, 0, 0.8); stroke-width: 3; }
+      50% { stroke: rgba(255, 165, 0, 0.8); stroke-width: 3; }
+      100% { stroke: rgba(255, 255, 0, 0.5); stroke-width: 1; }
+    }
+    h2 {
+      color: #333;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+    .error-display {
+      font-weight: bold;
+      font-size: 18px;
+      margin: 15px 0;
+    }
+    .weight-value {
+      font-weight: bold;
+    }
+    .learning-rate-container {
+      margin: 10px 0;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Visualização do Backpropagation</h1>
+    <div class="explanation">
+      <h3>Como funciona?</h3>
+      <p>O backpropagation (retropropagação) é o algoritmo fundamental para treinar redes neurais. Ele funciona em duas etapas:</p>
+      <ol>
+        <li><strong>Forward Pass:</strong> Os dados de entrada são propagados através da rede para gerar uma saída.</li>
+        <li><strong>Backward Pass:</strong> O erro é calculado comparando a saída com o valor esperado, e então propagado de volta pela rede para ajustar os pesos.</li>
+      </ol>
+      <p>Esta visualização mostra esses processos em uma rede neural simples com uma camada oculta.</p>
+    </div>
+
     <div id="app"></div>
   </div>
+
   <script type="text/babel">
+    // Funções de ativação
     const sigmoid = x => 1 / (1 + Math.exp(-x));
     const sigmoidDerivative = x => sigmoid(x) * (1 - sigmoid(x));
+    
+    // Função para calcular erro quadrático médio (MSE)
+    const calculateMSE = (output, target) => {
+      return Math.pow(output - target, 2) / 2;
+    };
 
+    // Função para desenhar uma seta entre dois pontos
+    const drawArrow = (ctx, fromX, fromY, toX, toY, color = 'rgba(0, 0, 0, 0.7)', width = 1) => {
+      const headLength = 10;
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+      
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.stroke();
+      
+      // Desenhar a ponta da seta
+      ctx.beginPath();
+      ctx.moveTo(toX, toY);
+      ctx.lineTo(toX - headLength * Math.cos(angle - Math.PI/6), toY - headLength * Math.sin(angle - Math.PI/6));
+      ctx.lineTo(toX - headLength * Math.cos(angle + Math.PI/6), toY - headLength * Math.sin(angle + Math.PI/6));
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    };
+
+    // Componente principal da aplicação
     const App = () => {
-      const [w1, setW1] = React.useState(Math.random());
-      const [w2, setW2] = React.useState(Math.random());
-      const [b, setB] = React.useState(Math.random());
-      const [output, setOutput] = React.useState(null);
-      const [loss, setLoss] = React.useState(null);
+      // Dados de treinamento pré-definidos
+      const trainingDatasets = {
+        AND: { inputs: [[0, 0], [0, 1], [1, 0], [1, 1]], targets: [0, 0, 0, 1] },
+        OR: { inputs: [[0, 0], [0, 1], [1, 0], [1, 1]], targets: [0, 1, 1, 1] },
+        XOR: { inputs: [[0, 0], [0, 1], [1, 0], [1, 1]], targets: [0, 1, 1, 0] },
+        NOT: { inputs: [[0], [1]], targets: [1, 0] }
+      };
+      
+      // Estado do componente React
+      const [inputLayer, setInputLayer] = React.useState(2); // Padrão: 2 neurônios na camada de entrada
+      const [hiddenLayer, setHiddenLayer] = React.useState(2); // Padrão: 2 neurônios na camada oculta
+      const [selectedDataset, setSelectedDataset] = React.useState('OR');
+      const [currentDataIndex, setCurrentDataIndex] = React.useState(0);
+      const [customInputs, setCustomInputs] = React.useState([0, 0]);
+      const [customTarget, setCustomTarget] = React.useState(0);
+      const [useCustomData, setUseCustomData] = React.useState(false);
+      
+      // Pesos e biases da rede neural
+      const [weights1, setWeights1] = React.useState(() => 
+        Array(hiddenLayer).fill().map(() => Array(inputLayer).fill().map(() => Math.random() * 2 - 1))
+      );
+      const [biases1, setBiases1] = React.useState(() => 
+        Array(hiddenLayer).fill().map(() => Math.random() * 2 - 1)
+      );
+      const [weights2, setWeights2] = React.useState(() => 
+        Array(hiddenLayer).fill().map(() => Math.random() * 2 - 1)
+      );
+      const [bias2, setBias2] = React.useState(Math.random() * 2 - 1);
+      
+      // Estado da visualização
+      const [hiddenLayerOutput, setHiddenLayerOutput] = React.useState([]);
+      const [finalOutput, setFinalOutput] = React.useState(0);
+      const [error, setError] = React.useState(0);
       const [epoch, setEpoch] = React.useState(0);
-
-      const input = [1, 0]; // exemplo XOR
-      const target = 1;
-
-      const forward = () => {
-        const z = w1 * input[0] + w2 * input[1] + b;
-        const y = sigmoid(z);
-        const error = 0.5 * (target - y) ** 2;
-        setOutput(y.toFixed(4));
-        setLoss(error.toFixed(4));
+      const [learningRate, setLearningRate] = React.useState(0.1);
+      const [logs, setLogs] = React.useState([]);
+      const [showBackpropFlow, setShowBackpropFlow] = React.useState(false);
+      const [autoTrain, setAutoTrain] = React.useState(false);
+      const [trainingInterval, setTrainingInterval] = React.useState(null);
+      
+      // Referência para o canvas
+      const canvasRef = React.useRef(null);
+      
+      // Obter dados de entrada e saída atuais
+      const getCurrentData = () => {
+        if (useCustomData) {
+          return {
+            inputs: customInputs,
+            target: customTarget
+          };
+        } else {
+          const dataset = trainingDatasets[selectedDataset];
+          return {
+            inputs: dataset.inputs[currentDataIndex],
+            target: dataset.targets[currentDataIndex]
+          };
+        }
       };
-
-      const backpropagate = () => {
-        const z = w1 * input[0] + w2 * input[1] + b;
-        const y = sigmoid(z);
-        const dz = (y - target) * sigmoidDerivative(z);
-
-        const dw1 = dz * input[0];
-        const dw2 = dz * input[1];
-        const db = dz;
-
-        const lr = 0.5;
-        setW1(w1 - lr * dw1);
-        setW2(w2 - lr * dw2);
-        setB(b - lr * db);
-
-        setEpoch(epoch + 1);
-        forward();
+      
+      // Forward pass
+      const forwardPass = () => {
+        const { inputs, target } = getCurrentData();
+        
+        // Calcular saídas da camada oculta
+        const hiddenOutputs = [];
+        for (let i = 0; i < hiddenLayer; i++) {
+          let sum = biases1[i];
+          for (let j = 0; j < inputLayer; j++) {
+            sum += inputs[j] * weights1[i][j];
+          }
+          const activatedOutput = sigmoid(sum);
+          hiddenOutputs.push(activatedOutput);
+        }
+        
+        // Calcular saída final
+        let outputSum = bias2;
+        for (let i = 0; i < hiddenLayer; i++) {
+          outputSum += hiddenOutputs[i] * weights2[i];
+        }
+        const output = sigmoid(outputSum);
+        
+        // Calcular erro
+        const mseError = calculateMSE(output, target);
+        
+        // Atualizar estado
+        setHiddenLayerOutput(hiddenOutputs);
+        setFinalOutput(output);
+        setError(mseError);
+        
+        addLog(`Forward Pass: entrada=${inputs.join(',')} → saída=${output.toFixed(4)}, alvo=${target}, erro=${mseError.toFixed(4)}`);
+        
+        // Desenhar rede
+        drawNetwork(inputs, hiddenOutputs, output, target);
+        
+        return { hiddenOutputs, output };
       };
-
+      
+      // Backward pass (backpropagation)
+      const backwardPass = () => {
+        const { inputs, target } = getCurrentData();
+        const { hiddenOutputs, output } = forwardPass();
+        
+        // Calcular gradientes na camada de saída
+        const outputError = output - target;
+        const outputDelta = outputError * sigmoidDerivative(output);
+        
+        // Calcular gradientes para camada oculta
+        const hiddenDeltas = Array(hiddenLayer).fill(0);
+        for (let i = 0; i < hiddenLayer; i++) {
+          hiddenDeltas[i] = outputDelta * weights2[i] * sigmoidDerivative(hiddenOutputs[i]);
+        }
+        
+        // Atualizar pesos e biases
+        const newWeights2 = [...weights2];
+        for (let i = 0; i < hiddenLayer; i++) {
+          newWeights2[i] -= learningRate * outputDelta * hiddenOutputs[i];
+        }
+        
+        const newBias2 = bias2 - learningRate * outputDelta;
+        
+        const newWeights1 = weights1.map((neuronWeights, i) => 
+          neuronWeights.map((weight, j) => 
+            weight - learningRate * hiddenDeltas[i] * inputs[j]
+          )
+        );
+        
+        const newBiases1 = biases1.map((bias, i) => 
+          bias - learningRate * hiddenDeltas[i]
+        );
+        
+        // Atualizar estado
+        setWeights1(newWeights1);
+        setBiases1(newBiases1);
+        setWeights2(newWeights2);
+        setBias2(newBias2);
+        setEpoch(prev => prev + 1);
+        
+        addLog(`Backward Pass: Atualizando pesos (taxa de aprendizado=${learningRate})`);
+        
+        // Mostrar animação de fluxo do backprop
+        setShowBackpropFlow(true);
+        setTimeout(() => setShowBackpropFlow(false), 2000);
+        
+        // Redesenhar rede com pesos atualizados
+        drawNetwork(inputs, hiddenOutputs, output, target, true);
+        
+        return error;
+      };
+      
+      // Treinar por uma época (um exemplo)
+      const trainOneEpoch = () => {
+        backwardPass();
+        
+        // Avançar para o próximo exemplo se não estiver usando dados personalizados
+        if (!useCustomData) {
+          const dataset = trainingDatasets[selectedDataset];
+          setCurrentDataIndex(prev => (prev + 1) % dataset.inputs.length);
+        }
+      };
+      
+      // Treinar por várias épocas
+      const trainMultipleEpochs = (numEpochs = 100) => {
+        let currentEpoch = 0;
+        const trainInterval = setInterval(() => {
+          trainOneEpoch();
+          currentEpoch++;
+          
+          if (currentEpoch >= numEpochs) {
+            clearInterval(trainInterval);
+            setAutoTrain(false);
+          }
+        }, 50);
+        
+        setTrainingInterval(trainInterval);
+        return trainInterval;
+      };
+      
+      // Iniciar/Parar treinamento automático
+      const toggleAutoTrain = () => {
+        if (autoTrain) {
+          clearInterval(trainingInterval);
+          setAutoTrain(false);
+        } else {
+          setAutoTrain(true);
+          trainMultipleEpochs(1000); // Treinar por 1000 épocas ou até ser parado
+        }
+      };
+      
+      // Reiniciar pesos
+      const resetWeights = () => {
+        setWeights1(Array(hiddenLayer).fill().map(() => Array(inputLayer).fill().map(() => Math.random() * 2 - 1)));
+        setBiases1(Array(hiddenLayer).fill().map(() => Math.random() * 2 - 1));
+        setWeights2(Array(hiddenLayer).fill().map(() => Math.random() * 2 - 1));
+        setBias2(Math.random() * 2 - 1);
+        setEpoch(0);
+        setError(0);
+        setHiddenLayerOutput([]);
+        setFinalOutput(0);
+        setShowBackpropFlow(false);
+        setLogs([]);
+        addLog("Pesos reiniciados aleatoriamente");
+        
+        // Desenhar rede inicial
+        setTimeout(() => {
+          forwardPass();
+        }, 100);
+      };
+      
+      // Adicionar mensagem ao log
+      const addLog = (message) => {
+        setLogs(prevLogs => {
+          const newLogs = [message, ...prevLogs];
+          if (newLogs.length > 10) {
+            return newLogs.slice(0, 10);
+          }
+          return newLogs;
+        });
+      };
+      
+      // Função para desenhar a rede neural no canvas
+      const drawNetwork = (inputs, hiddenOutputs, output, target, showGradient = false) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        // Definir coordenadas para cada camada
+        const inputX = width * 0.1;
+        const hiddenX = width * 0.5;
+        const outputX = width * 0.9;
+        
+        const inputSpacing = height / (inputLayer + 1);
+        const hiddenSpacing = height / (hiddenLayer + 1);
+        
+        // Desenhar neurônios de entrada
+        const inputNodes = [];
+        for (let i = 0; i < inputLayer; i++) {
+          const y = inputSpacing * (i + 1);
+          inputNodes.push({ x: inputX, y });
+          
+          // Desenhar neurônio
+          ctx.beginPath();
+          ctx.arc(inputX, y, 20, 0, Math.PI * 2);
+          ctx.fillStyle = '#9bbcea';
+          ctx.fill();
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          
+          // Adicionar texto
+          ctx.fillStyle = '#000';
+          ctx.font = '16px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`x${i+1}: ${inputs[i]}`, inputX, y);
+        }
+        
+        // Desenhar neurônios ocultos
+        const hiddenNodes = [];
+        for (let i = 0; i < hiddenLayer; i++) {
+          const y = hiddenSpacing * (i + 1);
+          hiddenNodes.push({ x: hiddenX, y });
+          
+          // Desenhar neurônio
+          ctx.beginPath();
+          ctx.arc(hiddenX, y, 20, 0, Math.PI * 2);
+          ctx.fillStyle = '#c8a2c8';
+          ctx.fill();
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          
+          // Adicionar texto do valor
+          const value = hiddenOutputs[i] ? hiddenOutputs[i].toFixed(2) : '?';
+          ctx.fillStyle = '#000';
+          ctx.font = '14px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(value, hiddenX, y);
+        }
+        
+        // Desenhar neurônio de saída
+        const outputY = height / 2;
+        ctx.beginPath();
+        ctx.arc(outputX, outputY, 20, 0, Math.PI * 2);
+        ctx.fillStyle = '#a1d99b';
+        ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        
+        // Adicionar texto à saída
+        ctx.fillStyle = '#000';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(output ? output.toFixed(2) : '?', outputX, outputY);
+        
+        // Adicionar texto ao alvo
+        ctx.fillStyle = 'red';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`Alvo: ${target}`, outputX, outputY + 35);
+        
+        // Desenhar conexões entre entrada e camada oculta
+        for (let i = 0; i < inputLayer; i++) {
+          for (let j = 0; j < hiddenLayer; j++) {
+            const weight = weights1[j][i];
+            const colorIntensity = Math.min(Math.abs(weight) * 2, 1);
+            const weightColor = weight > 0 
+              ? `rgba(0, 128, 0, ${colorIntensity})` 
+              : `rgba(255, 0, 0, ${colorIntensity})`;
+            
+            const lineWidth = Math.max(Math.abs(weight) * 5, 1);
+            
+            ctx.beginPath();
+            ctx.moveTo(inputNodes[i].x + 20, inputNodes[i].y);
+            ctx.lineTo(hiddenNodes[j].x - 20, hiddenNodes[j].y);
+            ctx.strokeStyle = weightColor;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+            
+            // Adicionar valor do peso no meio da conexão
+            const midX = (inputNodes[i].x + hiddenNodes[j].x) / 2;
+            const midY = (inputNodes[i].y + hiddenNodes[j].y) / 2;
+            ctx.fillStyle = '#333';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(weight.toFixed(2), midX, midY);
+          }
+        }
+        
+        // Desenhar conexão entre camada oculta e saída
+        for (let i = 0; i < hiddenLayer; i++) {
+          const weight = weights2[i];
+          const colorIntensity = Math.min(Math.abs(weight) * 2, 1);
+          const weightColor = weight > 0 
+            ? `rgba(0, 128, 0, ${colorIntensity})` 
+            : `rgba(255, 0, 0, ${colorIntensity})`;
+          
+          const lineWidth = Math.max(Math.abs(weight) * 5, 1);
+          
+          ctx.beginPath();
+          ctx.moveTo(hiddenNodes[i].x + 20, hiddenNodes[i].y);
+          ctx.lineTo(outputX - 20, outputY);
+          ctx.strokeStyle = weightColor;
+          ctx.lineWidth = lineWidth;
+          ctx.stroke();
+          
+          // Adicionar valor do peso no meio da conexão
+          const midX = (hiddenNodes[i].x + outputX) / 2;
+          const midY = (hiddenNodes[i].y + outputY) / 2;
+          ctx.fillStyle = '#333';
+          ctx.font = '12px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(weight.toFixed(2), midX, midY);
+        }
+        
+        // Mostrar animação de fluxo do backprop
+        if (showBackpropFlow && showGradient) {
+          // Desenhar fluxo de propagação de erro (gradiente)
+          // Primeiro da saída para a camada oculta
+          for (let i = 0; i < hiddenLayer; i++) {
+            ctx.beginPath();
+            ctx.moveTo(outputX - 20, outputY);
+            ctx.lineTo(hiddenNodes[i].x + 20, hiddenNodes[i].y);
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          
+          // Depois da camada oculta para a entrada
+          for (let i = 0; i < hiddenLayer; i++) {
+            for (let j = 0; j < inputLayer; j++) {
+              ctx.beginPath();
+              ctx.moveTo(hiddenNodes[i].x - 20, hiddenNodes[i].y);
+              ctx.lineTo(inputNodes[j].x + 20, inputNodes[j].y);
+              ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+              ctx.lineWidth = 1;
+              ctx.setLineDash([5, 5]);
+              ctx.stroke();
+              ctx.setLineDash([]);
+            }
+          }
+        }
+        
+        // Adicionar bias à visualização
+        for (let i = 0; i < hiddenLayer; i++) {
+          ctx.fillStyle = biases1[i] > 0 ? 'green' : 'red';
+          ctx.font = '12px Arial';
+          ctx.textAlign = 'left';
+          ctx.fillText(`b: ${biases1[i].toFixed(2)}`, hiddenNodes[i].x - 45, hiddenNodes[i].y - 25);
+        }
+        
+        ctx.fillStyle = bias2 > 0 ? 'green' : 'red';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(`b: ${bias2.toFixed(2)}`, outputX - 45, outputY - 25);
+      };
+      
+      // Efeito para inicializar a rede quando os parâmetros mudam
+      React.useEffect(() => {
+        // Reiniciar pesos quando o número de neurônios muda
+        resetWeights();
+        
+        // Cancelar treinamento automático se estiver ativo
+        if (autoTrain) {
+          clearInterval(trainingInterval);
+          setAutoTrain(false);
+        }
+      }, [inputLayer, hiddenLayer, selectedDataset]);
+      
+      // Efeito para executar forward pass quando os dados mudam
+      React.useEffect(() => {
+        forwardPass();
+      }, [currentDataIndex, useCustomData, customInputs, customTarget]);
+      
+      // Atualizar valores de entrada personalizados
+      const handleInputChange = (index, value) => {
+        const newInputs = [...customInputs];
+        newInputs[index] = Number(value);
+        setCustomInputs(newInputs);
+      };
+      
+      // Atualizar número de neurônios na camada oculta
+      const handleHiddenLayerChange = (e) => {
+        const newSize = parseInt(e.target.value);
+        setHiddenLayer(newSize);
+      };
+      
+      // Mudar conjunto de dados
+      const handleDatasetChange = (e) => {
+        const newDataset = e.target.value;
+        setSelectedDataset(newDataset);
+        setCurrentDataIndex(0);
+        
+        // Ajustar número de inputs baseado no conjunto de dados
+        const inputSize = trainingDatasets[newDataset].inputs[0].length;
+        setInputLayer(inputSize);
+        setCustomInputs(Array(inputSize).fill(0));
+      };
+      
       return (
         <div>
-          <p><strong>Entrada:</strong> [{input.join(', ')}]</p>
-          <p><strong>Target:</strong> {target}</p>
-          <p>Peso w1: {w1.toFixed(4)}</p>
-          <p>Peso w2: {w2.toFixed(4)}</p>
-          <p>Bias: {b.toFixed(4)}</p>
-          <p>Saída: {output}</p>
-          <p>Loss: {loss}</p>
-          <p>Época: {epoch}</p>
-          <button className="button" onClick={forward}>Executar Forward</button>
-          <button className="button" onClick={backpropagate}>Retropropagar</button>
+          <div className="grid-layout">
+            <div className="card">
+              <h2>Configuração da Rede</h2>
+              
+              <div className="controls">
+                <div className="slider-container">
+                  <div className="slider-label">
+                    <span>Neurônios na camada oculta:</span>
+                    <span>{hiddenLayer}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    value={hiddenLayer}
+                    onChange={handleHiddenLayerChange}
+                    className="slider"
+                  />
+                </div>
+                
+                <div className="learning-rate-container">
+                  <div className="slider-label">
+                    <span>Taxa de aprendizado:</span>
+                    <span>{learningRate.toFixed(2)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.01"
+                    max="0.5"
+                    step="0.01"
+                    value={learningRate}
+                    onChange={(e) => setLearningRate(parseFloat(e.target.value))}
+                    className="slider"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <h3>Dados de Treinamento</h3>
+                <div className="training-data-option">
+                  <select 
+                    value={selectedDataset} 
+                    onChange={handleDatasetChange}
+                    disabled={useCustomData}
+                  >
+                    <option value="AND">Porta Lógica AND</option>
+                    <option value="OR">Porta Lógica OR</option>
+                    <option value="XOR">Porta Lógica XOR</option>
+                    <option value="NOT">Porta Lógica NOT</option>
+                  </select>
+                </div>
+                
+                <div className="training-data-option">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={useCustomData}
+                      onChange={(e) => setUseCustomData(e.target.checked)}
+                    />
+                    Usar dados personalizados
+                  </label>
+                </div>
+                
+                {useCustomData && (
+                  <div>
+                    {customInputs.map((input, index) => (
+                      <div key={index} style={{ marginBottom: '5px' }}>
+                        <label>
+                          Entrada {index + 1}:
+                          <input
+                            type="number"
+                            min="0"
+                            max="1"
+                            step="1"
+                            value={input}
+                            onChange={(e) => handleInputChange(index, e.target.value)}
+                            style={{ marginLeft: '10px', width: '50px' }}
+                          />
+                        </label>
+                      </div>
+                    ))}
+                    <div style={{ marginBottom: '10px' }}>
+                      <label>
+                        Saída esperada:
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="1"
+                          value={customTarget}
+                          onChange={(e) => setCustomTarget(Number(e.target.value))}
+                          style={{ marginLeft: '10px', width: '50px' }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <h3>Estado Atual</h3>
+              <div className="error-display">
+                Erro: {error ? error.toFixed(6) : '0.000000'}
+              </div>
+              <div>
+                Épocas: {epoch}
+              </div>
+            </div>
+            
+            <div className="card">
+              <h2>Visualização da Rede Neural</h2>
+              <div className="neural-network">
+                <canvas ref={canvasRef} width="500" height="300"></canvas>
+              </div>
+              
+              <div className="logs">
+                {logs.map((log, index) => (
+                  <p key={index}>{log}</p>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <div className="card">
+            <h2>Controles</h2>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+              <button className="button" onClick={forwardPass}>
+                Forward Pass
+              </button>
+              <button className="button button-step" onClick={trainOneEpoch}>
+                Uma Época (Backpropagation)
+              </button>
+              <button 
+                className="button" 
+                style={{ backgroundColor: autoTrain ? '#ff9800' : '#4caf50' }}
+                onClick={toggleAutoTrain}
+              >
+                {autoTrain ? 'Parar Treinamento' : 'Iniciar Treinamento Automático'}
+              </button>
+              <button className="button button-reset" onClick={resetWeights}>
+                Reiniciar Pesos
+              </button>
+            </div>
+            
+            {!useCustomData && (
+              <div style={{ marginTop: '15px', textAlign: 'center' }}>
+                <p>
+                  Exemplo atual: {currentDataIndex + 1} de {trainingDatasets[selectedDataset].inputs.length}
+                </p>
+                <button 
+                  className="button"
+                  onClick={() => setCurrentDataIndex(prev => 
+                    (prev + 1) % trainingDatasets[selectedDataset].inputs.length
+                  )}
+                >
+                  Próximo Exemplo
+                </button>
+              </div>
+            )}
+          </div>
+          
+          <div className="card">
+            <h2>Explicação do Backpropagation</h2>
+            <div className="explanation">
+              <h3>Passos do Algoritmo:</h3>
+              <ol>
+                <li><strong>Forward pass:</strong> A informação flui da entrada para a saída, calculando a saída da rede para um determinado exemplo.</li>
+                <li><strong>Cálculo do erro:</strong> Comparamos a saída calculada com o valor esperado para determinar o erro.</li>
+                <li><strong>Backward pass:</strong> O erro é propagado de volta da saída para a entrada, calculando o gradiente para cada peso.</li>
+                <li><strong>Atualização dos pesos:</strong> Os pesos são ajustados na direção oposta ao gradiente, proporcionalmente à taxa de aprendizado.</li>
+              </ol>
+              
+              <h3>Fórmulas importantes:</h3>
+              <ul>
+                <li><strong>Função Sigmoid:</strong> σ(x) = 1 / (1 + e<sup>-x</sup>)</li>
+                <li><strong>Derivada da Sigmoid:</strong> σ'(x) = σ(x) * (1 - σ(x))</li>
+                <li><strong>Erro quadrático médio:</strong> MSE = (1/2) * (target - output)<sup>2</sup></li>
+                <li><strong>Atualização de peso:</strong> w = w - η * (∂E/∂w)</li>
+              </ul>
+              
+              <h3>Dicas para visualização:</h3>
+              <ul>
+                <li>As <strong>linhas verdes</strong> representam pesos positivos, enquanto as <strong>linhas vermelhas</strong> representam pesos negativos.</li>
+                <li>A <strong>espessura das linhas</strong> indica a magnitude do peso.</li>
+                <li>Durante o backpropagation, as <strong>linhas tracejadas vermelhas</strong> mostram a direção do fluxo do gradiente.</li>
+                <li>Tente diferentes taxas de aprendizado para ver como afeta a convergência.</li>
+                <li>O problema XOR é mais desafiador e requer mais neurônios na camada oculta para ser resolvido.</li>
+              </ul>
+            </div>
+          </div>
         </div>
       );
     };
 
+    // Renderizar o componente React
     ReactDOM.render(<App />, document.getElementById("app"));
   </script>
 </body>
