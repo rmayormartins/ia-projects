@@ -88,14 +88,17 @@
     .slider {
       width: 100%;
     }
-    .grid-layout {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+    /* Modificação principal: mudar de grid para layout vertical */
+    .vertical-layout {
+      display: flex;
+      flex-direction: column;
       gap: 20px;
+      align-items: center;
     }
+    /* Manter grid apenas para mobile responsiveness */
     @media (max-width: 768px) {
-      .grid-layout {
-        grid-template-columns: 1fr;
+      .vertical-layout {
+        gap: 15px;
       }
     }
     .explanation {
@@ -893,19 +896,25 @@
               </div>
               
               <div className="canvas-container">
-                <canvas
-                  ref={inputCanvasRef}
-                  width="200"
-                  height="200"
-                  style={{ border: '1px solid #ccc', margin: '10px' }}
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseLeave}
-                />
+                <div className="canvas-wrapper">
+                  <div className="canvas-title">Imagem de Entrada</div>
+                  <canvas
+                    ref={inputCanvasRef}
+                    width="200"
+                    height="200"
+                    style={{ border: '1px solid #ccc', margin: '10px' }}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseLeave}
+                  />
+                </div>
               </div>
               
-              <div className="grid-layout" style={{ marginTop: '20px' }}>>
+              {/* Layout vertical para as saídas das camadas */}
+              <div className="vertical-layout" style={{ marginTop: '20px' }}>
+                <div className="flow-arrow">↓</div>
+                
                 <div className="canvas-wrapper">
                   <div className="canvas-title">Saída da Camada Convolucional + ReLU</div>
                   <canvas
@@ -915,6 +924,9 @@
                     style={{ border: '1px solid #ccc' }}
                   />
                 </div>
+                
+                <div className="flow-arrow">↓</div>
+                
                 <div className="canvas-wrapper">
                   <div className="canvas-title">Saída da Camada de Pooling</div>
                   <canvas
