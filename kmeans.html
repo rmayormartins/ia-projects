@@ -1,4 +1,7 @@
-<!DOCTYPE html>
+                                <div className="stat-card">
+                                    <div className="stat-value">{inertia.toFixed(2)}</div>
+                                    <div className="stat-label">Inércia (WCSS)</div>
+                                </div><!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -75,14 +78,6 @@
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
-        }
-            .back-button {
-            display: inline-flex;
-            align-items: center;
-            color: blue;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-decoration: none;
         }
         button {
             padding: 12px 20px;
@@ -221,9 +216,7 @@
 </head>
 <body>
     <div id="root"></div>
-    <a href="index.html" class="back-button">
-      ← Voltar para Ferramentas
-    </a>
+
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
@@ -234,11 +227,14 @@
             const [k, setK] = useState(3);
             const [maxIterations, setMaxIterations] = useState(100);
             const [isRunning, setIsRunning] = useState(false);
+            const [isPaused, setIsPaused] = useState(false);
             const [currentIteration, setCurrentIteration] = useState(0);
             const [hasConverged, setHasConverged] = useState(false);
             const [currentStep, setCurrentStep] = useState('');
             const [inertia, setInertia] = useState(0);
-            const [animationSpeed, setAnimationSpeed] = useState(500);
+            const [animationSpeed, setAnimationSpeed] = useState(800);
+            const [isAssigning, setIsAssigning] = useState(false);
+            const [isUpdatingCentroids, setIsUpdatingCentroids] = useState(false);
 
             const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
             const canvasWidth = 600;
@@ -258,7 +254,7 @@
                 setCentroids([]);
                 setCurrentIteration(0);
                 setHasConverged(false);
-                setCurrentStep('Pontos gerados. Clique em "Inicializar Centroides" para começar.');
+                setCurrentStep('🚀 Pontos gerados! Clique em "Inicializar Centroides" para começar.');
                 setInertia(0);
             };
 
@@ -276,7 +272,7 @@
                 setCentroids(newCentroids);
                 setCurrentIteration(0);
                 setHasConverged(false);
-                setCurrentStep('Centroides inicializados. Clique em "Executar K-Means" para começar o algoritmo.');
+                setCurrentStep('🎯 Centroides inicializados! Clique em "Executar K-Means" para começar o algoritmo.');
             };
 
             // Calcular distância euclidiana
@@ -347,53 +343,103 @@
                 return true;
             };
 
-            // Uma iteração do K-Means
+            // Uma iteração do K-Means com visualização em tempo real
             const kmensStep = async () => {
                 if (centroids.length === 0) {
                     alert('Primeiro inicialize os centroides!');
                     return false;
                 }
 
-                setCurrentStep('Atribuindo pontos aos clusters...');
-                await new Promise(resolve => setTimeout(resolve, animationSpeed));
+                setCurrentStep(`🔄 Iniciando iteração ${currentIteration + 1}...`);
+                setIsAssigning(true);
+                await new Promise(resolve => setTimeout(resolve, animationSpeed / 4));
 
-                // Passo 1: Atribuir pontos aos centroides mais próximos
+                // Passo 1: Atribuir pontos aos centroides mais próximos (com animação gradual)
+                setCurrentStep('📍 Atribuindo pontos aos clusters mais próximos...');
                 const assignedPoints = assignPointsToCentroids();
+                
+                // Animação gradual da atribuição de pontos
+                for (let i = 0; i < assignedPoints.length; i += 5) {
+                    if (isPaused) {
+                        setIsAssigning(false);
+                        return false;
+                    }
+                    const partialPoints = points.map((point, index) => 
+                        index <= i ? assignedPoints[index] : point
+                    );
+                    setPoints(partialPoints);
+                    await new Promise(resolve => setTimeout(resolve, Math.max(50, animationSpeed / 20)));
+                }
+                
                 setPoints(assignedPoints);
+                setIsAssigning(false);
+                
+                // Pausa para visualizar a atribuição
+                await new Promise(resolve => setTimeout(resolve, animationSpeed / 2));
+                
+                if (isPaused) return false;
 
                 // Calcular inércia
                 const currentInertia = calculateInertia(assignedPoints);
                 setInertia(currentInertia);
 
-                setCurrentStep('Atualizando posições dos centroides...');
-                await new Promise(resolve => setTimeout(resolve, animationSpeed));
+                setCurrentStep('📊 Calculando nova posição dos centroides...');
+                setIsUpdatingCentroids(true);
+                await new Promise(resolve => setTimeout(resolve, animationSpeed / 4));
 
-                // Passo 2: Atualizar centroides
+                // Passo 2: Atualizar centroides (com animação suave)
                 const oldCentroids = [...centroids];
                 const newCentroids = updateCentroids(assignedPoints);
+                
+                // Animação suave do movimento dos centroides
+                const steps = 10;
+                for (let step = 1; step <= steps; step++) {
+                    if (isPaused) {
+                        setIsUpdatingCentroids(false);
+                        return false;
+                    }
+                    
+                    const interpolatedCentroids = centroids.map((oldCentroid, index) => {
+                        const newCentroid = newCentroids[index];
+                        const progress = step / steps;
+                        return {
+                            ...oldCentroid,
+                            x: oldCentroid.x + (newCentroid.x - oldCentroid.x) * progress,
+                            y: oldCentroid.y + (newCentroid.y - oldCentroid.y) * progress,
+                            prevX: oldCentroid.x,
+                            prevY: oldCentroid.y
+                        };
+                    });
+                    
+                    setCentroids(interpolatedCentroids);
+                    await new Promise(resolve => setTimeout(resolve, animationSpeed / (steps * 2)));
+                }
+                
                 setCentroids(newCentroids);
+                setIsUpdatingCentroids(false);
 
                 // Verificar convergência
                 const converged = checkConvergence(oldCentroids, newCentroids);
                 
-                if (converged) {
-                    setHasConverged(true);
-                    setCurrentStep('Algoritmo convergiu! Os centroides não se movem mais significativamente.');
-                    return false;
-                }
-
                 setCurrentIteration(prev => prev + 1);
                 
+                if (converged) {
+                    setHasConverged(true);
+                    setCurrentStep('✅ Algoritmo convergiu! Os centroides não se movem mais significativamente.');
+                    return false;
+                }
+                
                 if (currentIteration >= maxIterations - 1) {
-                    setCurrentStep('Número máximo de iterações atingido.');
+                    setCurrentStep('⏱️ Número máximo de iterações atingido.');
                     return false;
                 }
 
-                setCurrentStep(`Iteração ${currentIteration + 1} concluída. Continuando...`);
+                setCurrentStep(`✔️ Iteração ${currentIteration + 1} concluída. Inércia: ${currentInertia.toFixed(2)}`);
+                await new Promise(resolve => setTimeout(resolve, animationSpeed / 2));
                 return true;
             };
 
-            // Executar K-Means completo
+            // Executar K-Means completo com controle de pausa
             const runKMeans = async () => {
                 if (centroids.length === 0) {
                     alert('Primeiro inicialize os centroides!');
@@ -401,15 +447,48 @@
                 }
 
                 setIsRunning(true);
+                setIsPaused(false);
                 setHasConverged(false);
-                setCurrentIteration(0);
 
                 let shouldContinue = true;
-                while (shouldContinue && currentIteration < maxIterations) {
+                let iteration = currentIteration;
+                
+                while (shouldContinue && iteration < maxIterations && !isPaused) {
                     shouldContinue = await kmensStep();
+                    iteration++;
+                    
+                    // Verificar pausa a cada iteração
+                    if (isPaused) {
+                        setCurrentStep('⏸️ Algoritmo pausado. Clique em Play para continuar.');
+                        break;
+                    }
                 }
 
+                if (!isPaused) {
+                    setIsRunning(false);
+                }
+            };
+
+            // Pausar/Retomar execução
+            const togglePause = () => {
+                if (isRunning) {
+                    setIsPaused(!isPaused);
+                    if (isPaused) {
+                        // Retomar
+                        setCurrentStep('▶️ Retomando execução...');
+                        runKMeans();
+                    } else {
+                        // Pausar
+                        setCurrentStep('⏸️ Pausando após a iteração atual...');
+                    }
+                }
+            };
+
+            // Parar completamente
+            const stopExecution = () => {
                 setIsRunning(false);
+                setIsPaused(false);
+                setCurrentStep('⏹️ Execução interrompida pelo usuário.');
             };
 
             // Reset
@@ -418,13 +497,17 @@
                 setCentroids([]);
                 setCurrentIteration(0);
                 setHasConverged(false);
-                setCurrentStep('Clique em "Gerar Pontos" para começar.');
+                setIsRunning(false);
+                setIsPaused(false);
+                setIsAssigning(false);
+                setIsUpdatingCentroids(false);
+                setCurrentStep('🚀 Clique em "Gerar Pontos" para começar uma nova experiência!');
                 setInertia(0);
             };
 
             // Adicionar ponto no clique
             const handleCanvasClick = (event) => {
-                if (isRunning) return;
+                if (isRunning && !isPaused) return;
 
                 const canvas = canvasRef.current;
                 const rect = canvas.getBoundingClientRect();
@@ -433,10 +516,10 @@
 
                 const newPoint = { x, y, cluster: -1 };
                 setPoints(prev => [...prev, newPoint]);
-                setCurrentStep('Ponto adicionado. Continue adicionando ou inicie o algoritmo.');
+                setCurrentStep('➕ Ponto adicionado! Continue adicionando ou inicie o algoritmo.');
             };
 
-            // Desenhar no canvas
+            // Desenhar no canvas com efeitos visuais melhorados
             const draw = () => {
                 const canvas = canvasRef.current;
                 if (!canvas) return;
@@ -444,22 +527,62 @@
                 const ctx = canvas.getContext('2d');
                 ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-                // Desenhar pontos
+                // Desenhar conexões entre pontos e seus centroides durante atribuição
+                if (isAssigning) {
+                    points.forEach(point => {
+                        if (point.cluster >= 0) {
+                            const centroid = centroids[point.cluster];
+                            ctx.beginPath();
+                            ctx.moveTo(point.x, point.y);
+                            ctx.lineTo(centroid.x, centroid.y);
+                            ctx.strokeStyle = colors[point.cluster % colors.length];
+                            ctx.lineWidth = 1;
+                            ctx.globalAlpha = 0.3;
+                            ctx.stroke();
+                            ctx.globalAlpha = 1;
+                        }
+                    });
+                }
+
+                // Desenhar pontos com efeito de pulsação durante atribuição
                 points.forEach(point => {
                     ctx.beginPath();
-                    ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
+                    const radius = isAssigning && point.cluster >= 0 ? 8 : 6;
+                    ctx.arc(point.x, point.y, radius, 0, 2 * Math.PI);
                     ctx.fillStyle = point.cluster >= 0 ? colors[point.cluster % colors.length] : '#95a5a6';
                     ctx.fill();
                     ctx.strokeStyle = '#2c3e50';
                     ctx.lineWidth = 1;
                     ctx.stroke();
+                    
+                    // Efeito de brilho para pontos sendo atribuídos
+                    if (isAssigning && point.cluster >= 0) {
+                        ctx.beginPath();
+                        ctx.arc(point.x, point.y, radius + 3, 0, 2 * Math.PI);
+                        ctx.strokeStyle = colors[point.cluster % colors.length];
+                        ctx.lineWidth = 2;
+                        ctx.globalAlpha = 0.5;
+                        ctx.stroke();
+                        ctx.globalAlpha = 1;
+                    }
                 });
 
-                // Desenhar centroides
+                // Desenhar centroides com efeitos especiais
                 centroids.forEach((centroid, index) => {
+                    // Halo ao redor do centroide durante atualização
+                    if (isUpdatingCentroids) {
+                        ctx.beginPath();
+                        ctx.arc(centroid.x, centroid.y, 20, 0, 2 * Math.PI);
+                        ctx.fillStyle = colors[index % colors.length];
+                        ctx.globalAlpha = 0.2;
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                    }
+
                     // Centroide atual
                     ctx.beginPath();
-                    ctx.arc(centroid.x, centroid.y, 12, 0, 2 * Math.PI);
+                    const radius = isUpdatingCentroids ? 14 : 12;
+                    ctx.arc(centroid.x, centroid.y, radius, 0, 2 * Math.PI);
                     ctx.fillStyle = colors[index % colors.length];
                     ctx.fill();
                     ctx.strokeStyle = '#2c3e50';
@@ -468,34 +591,35 @@
 
                     // X no centro
                     ctx.beginPath();
-                    ctx.moveTo(centroid.x - 6, centroid.y - 6);
-                    ctx.lineTo(centroid.x + 6, centroid.y + 6);
-                    ctx.moveTo(centroid.x + 6, centroid.y - 6);
-                    ctx.lineTo(centroid.x - 6, centroid.y + 6);
+                    const xSize = isUpdatingCentroids ? 8 : 6;
+                    ctx.moveTo(centroid.x - xSize, centroid.y - xSize);
+                    ctx.lineTo(centroid.x + xSize, centroid.y + xSize);
+                    ctx.moveTo(centroid.x + xSize, centroid.y - xSize);
+                    ctx.lineTo(centroid.x - xSize, centroid.y + xSize);
                     ctx.strokeStyle = '#2c3e50';
                     ctx.lineWidth = 2;
                     ctx.stroke();
 
-                    // Posição anterior (seta)
+                    // Posição anterior (seta) com efeito melhorado
                     if (centroid.prevX !== 0 || centroid.prevY !== 0) {
                         ctx.beginPath();
                         ctx.moveTo(centroid.prevX, centroid.prevY);
                         ctx.lineTo(centroid.x, centroid.y);
                         ctx.strokeStyle = '#e74c3c';
-                        ctx.lineWidth = 2;
-                        ctx.setLineDash([5, 5]);
+                        ctx.lineWidth = 3;
+                        ctx.setLineDash([8, 4]);
                         ctx.stroke();
                         ctx.setLineDash([]);
 
-                        // Seta
+                        // Seta melhorada
                         const angle = Math.atan2(centroid.y - centroid.prevY, centroid.x - centroid.prevX);
                         ctx.beginPath();
                         ctx.moveTo(centroid.x, centroid.y);
-                        ctx.lineTo(centroid.x - 10 * Math.cos(angle - Math.PI / 6), centroid.y - 10 * Math.sin(angle - Math.PI / 6));
+                        ctx.lineTo(centroid.x - 12 * Math.cos(angle - Math.PI / 6), centroid.y - 12 * Math.sin(angle - Math.PI / 6));
                         ctx.moveTo(centroid.x, centroid.y);
-                        ctx.lineTo(centroid.x - 10 * Math.cos(angle + Math.PI / 6), centroid.y - 10 * Math.sin(angle + Math.PI / 6));
+                        ctx.lineTo(centroid.x - 12 * Math.cos(angle + Math.PI / 6), centroid.y - 12 * Math.sin(angle + Math.PI / 6));
                         ctx.strokeStyle = '#e74c3c';
-                        ctx.lineWidth = 2;
+                        ctx.lineWidth = 3;
                         ctx.stroke();
                     }
                 });
@@ -503,7 +627,7 @@
 
             useEffect(() => {
                 draw();
-            }, [points, centroids]);
+            }, [points, centroids, isAssigning, isUpdatingCentroids]);
 
             useEffect(() => {
                 generateRandomPoints();
@@ -543,14 +667,14 @@
                             </div>
                             
                             <div className="control-group">
-                                <label>Velocidade da Animação (ms):</label>
+                                <label>Velocidade da Animação:</label>
                                 <input 
                                     type="range" 
-                                    min="100" 
+                                    min="200" 
                                     max="2000" 
                                     value={animationSpeed} 
                                     onChange={(e) => setAnimationSpeed(parseInt(e.target.value))}
-                                    disabled={isRunning}
+                                    disabled={isRunning && !isPaused}
                                 />
                                 <span>{animationSpeed}ms</span>
                             </div>
@@ -559,53 +683,77 @@
                                 <button 
                                     className="btn-primary" 
                                     onClick={() => generateRandomPoints(100)}
-                                    disabled={isRunning}
+                                    disabled={(isRunning && !isPaused) || isAssigning || isUpdatingCentroids}
                                 >
-                                    Gerar Pontos
+                                    🎲 Gerar Pontos
                                 </button>
                                 
                                 <button 
                                     className="btn-secondary" 
                                     onClick={initializeCentroids}
-                                    disabled={isRunning || points.length === 0}
+                                    disabled={(isRunning && !isPaused) || points.length === 0 || isAssigning || isUpdatingCentroids}
                                 >
-                                    Inicializar Centroides
+                                    🎯 Inicializar Centroides
                                 </button>
                                 
                                 <button 
                                     className="btn-success" 
                                     onClick={runKMeans}
-                                    disabled={isRunning || centroids.length === 0}
+                                    disabled={(isRunning && !isPaused) || centroids.length === 0 || hasConverged}
                                 >
-                                    {isRunning ? 'Executando...' : 'Executar K-Means'}
+                                    {isRunning && !isPaused ? '⏸️ Executando...' : '▶️ Executar K-Means'}
                                 </button>
+                                
+                                {isRunning && (
+                                    <button 
+                                        className={isPaused ? "btn-success" : "btn-secondary"}
+                                        onClick={togglePause}
+                                    >
+                                        {isPaused ? '▶️ Continuar' : '⏸️ Pausar'}
+                                    </button>
+                                )}
+                                
+                                {isRunning && (
+                                    <button 
+                                        className="btn-danger"
+                                        onClick={stopExecution}
+                                    >
+                                        ⏹️ Parar
+                                    </button>
+                                )}
                                 
                                 <button 
                                     className="btn-secondary" 
                                     onClick={kmensStep}
-                                    disabled={isRunning || centroids.length === 0 || hasConverged}
+                                    disabled={(isRunning && !isPaused) || centroids.length === 0 || hasConverged || isAssigning || isUpdatingCentroids}
                                 >
-                                    Passo a Passo
+                                    👣 Passo a Passo
                                 </button>
                                 
                                 <button 
                                     className="btn-danger" 
                                     onClick={reset}
-                                    disabled={isRunning}
+                                    disabled={(isRunning && !isPaused) || isAssigning || isUpdatingCentroids}
                                 >
-                                    Reset
+                                    🔄 Reset
                                 </button>
                             </div>
                         </div>
 
                         <div className="canvas-container">
+                            {(isAssigning || isUpdatingCentroids) && (
+                                <div className={`real-time-indicator ${isAssigning ? 'assigning' : 'updating'}`}>
+                                    {isAssigning && '🔄 Atribuindo pontos aos clusters em tempo real...'}
+                                    {isUpdatingCentroids && '📍 Atualizando posições dos centroides...'}
+                                </div>
+                            )}
                             <canvas
                                 ref={canvasRef}
                                 width={canvasWidth}
                                 height={canvasHeight}
                                 onClick={handleCanvasClick}
                             />
-                            <p><em>Clique no canvas para adicionar pontos manualmente</em></p>
+                            <p><em>💡 Clique no canvas para adicionar pontos manualmente. Durante a execução, use Pausar/Continuar para controlar a visualização!</em></p>
                         </div>
 
                         <div className="info-panel">
@@ -628,8 +776,8 @@
                                 </div>
                                 
                                 <div className="stat-card">
-                                    <div className="stat-value">{inertia.toFixed(2)}</div>
-                                    <div className="stat-label">Inércia (WCSS)</div>
+                                    <div className="stat-value">{hasConverged ? '✅' : isPaused ? '⏸️' : isRunning ? '🔄' : '⭐'}</div>
+                                    <div className="stat-label">Status</div>
                                 </div>
                             </div>
 
