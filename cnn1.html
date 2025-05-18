@@ -216,7 +216,19 @@
       gap: 10px;
       margin-bottom: 10px;
     }
+    .flow-arrow {
+      font-size: 24px;
+      color: #555;
+      margin: 10px 0;
+    }
+    .flow-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
   </style>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
   <div class="container">
@@ -874,14 +886,10 @@
               
               <h3>Formas Pré-definidas</h3>
               <div className="preset-images">
-                <button className="button" onClick={() => loadPresetImage('horizontal')}>Linha Horizontal</button>
-                <button className="button" onClick={() => loadPresetImage('vertical')}>Linha Vertical</button>
                 <button className="button" onClick={() => loadPresetImage('square')}>Quadrado</button>
                 <button className="button" onClick={() => loadPresetImage('circle')}>Círculo</button>
-                <button className="button" onClick={() => loadPresetImage('cross')}>Cruz</button>
                 <button className="button" onClick={() => loadPresetImage('diagonal')}>Diagonal</button>
                 <button className="button" onClick={() => loadPresetImage('triangle')}>Triângulo</button>
-                <button className="button" onClick={() => loadPresetImage('grid')}>Grade</button>
               </div>
               
               <div className="canvas-container">
