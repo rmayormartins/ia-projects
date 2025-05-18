@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-Means Clustering - Visualização Interativa</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        .content {
+            padding: 30px;
+        }
+        .controls {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .control-group label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 14px;
+        }
+        .control-group input[type="range"] {
+            width: 150px;
+        }
+        .control-group input[type="number"] {
+            width: 80px;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+            .back-button {
+            display: inline-flex;
+            align-items: center;
+            color: blue;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-decoration: none;
+        }
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+            transform: translateY(-2px);
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #1e7e34;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        .canvas-container {
+            margin: 20px 0;
+            text-align: center;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        canvas {
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            cursor: crosshair;
+        }
+        .info-panel {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #007bff;
+        }
+        .info-panel h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #007bff;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        .algorithm-steps {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .algorithm-steps h4 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .algorithm-steps ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .algorithm-steps li {
+            margin-bottom: 8px;
+            color: #856404;
+        }
+        .current-step {
+            font-weight: bold;
+            background: #fff3cd;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #ffeeba;
+        }
+        .convergence-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .convergence-info h4 {
+            margin-top: 0;
+            color: #0c5460;
+        }
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+            }
+            .control-group input[type="range"] {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        function KMeansVisualization() {
+            const canvasRef = useRef(null);
+            const [points, setPoints] = useState([]);
+            const [centroids, setCentroids] = useState([]);
+            const [k, setK] = useState(3);
+            const [maxIterations, setMaxIterations] = useState(100);
+            const [isRunning, setIsRunning] = useState(false);
+            const [currentIteration, setCurrentIteration] = useState(0);
+            const [hasConverged, setHasConverged] = useState(false);
+            const [currentStep, setCurrentStep] = useState('');
+            const [inertia, setInertia] = useState(0);
+            const [animationSpeed, setAnimationSpeed] = useState(500);
+
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+            const canvasWidth = 600;
+            const canvasHeight = 400;
+
+            // Gerar pontos aleatórios
+            const generateRandomPoints = (numPoints = 100) => {
+                const newPoints = [];
+                for (let i = 0; i < numPoints; i++) {
+                    newPoints.push({
+                        x: Math.random() * (canvasWidth - 40) + 20,
+                        y: Math.random() * (canvasHeight - 40) + 20,
+                        cluster: -1
+                    });
+                }
+                setPoints(newPoints);
+                setCentroids([]);
+                setCurrentIteration(0);
+                setHasConverged(false);
+                setCurrentStep('Pontos gerados. Clique em "Inicializar Centroides" para começar.');
+                setInertia(0);
+            };
+
+            // Inicializar centroides aleatoriamente
+            const initializeCentroids = () => {
+                const newCentroids = [];
+                for (let i = 0; i < k; i++) {
+                    newCentroids.push({
+                        x: Math.random() * (canvasWidth - 40) + 20,
+                        y: Math.random() * (canvasHeight - 40) + 20,
+                        prevX: 0,
+                        prevY: 0
+                    });
+                }
+                setCentroids(newCentroids);
+                setCurrentIteration(0);
+                setHasConverged(false);
+                setCurrentStep('Centroides inicializados. Clique em "Executar K-Means" para começar o algoritmo.');
+            };
+
+            // Calcular distância euclidiana
+            const calculateDistance = (point1, point2) => {
+                return Math.sqrt(Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y, 2));
+            };
+
+            // Atribuir pontos aos clusters mais próximos
+            const assignPointsToCentroids = () => {
+                return points.map(point => {
+                    let minDistance = Infinity;
+                    let closestCentroid = 0;
+
+                    centroids.forEach((centroid, index) => {
+                        const distance = calculateDistance(point, centroid);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestCentroid = index;
+                        }
+                    });
+
+                    return { ...point, cluster: closestCentroid };
+                });
+            };
+
+            // Atualizar centroides
+            const updateCentroids = (assignedPoints) => {
+                return centroids.map((centroid, index) => {
+                    const clusterPoints = assignedPoints.filter(point => point.cluster === index);
+                    
+                    if (clusterPoints.length === 0) {
+                        return centroid;
+                    }
+
+                    const newX = clusterPoints.reduce((sum, point) => sum + point.x, 0) / clusterPoints.length;
+                    const newY = clusterPoints.reduce((sum, point) => sum + point.y, 0) / clusterPoints.length;
+
+                    return {
+                        ...centroid,
+                        prevX: centroid.x,
+                        prevY: centroid.y,
+                        x: newX,
+                        y: newY
+                    };
+                });
+            };
+
+            // Calcular inércia (soma das distâncias quadráticas dos pontos aos seus centroides)
+            const calculateInertia = (assignedPoints) => {
+                return assignedPoints.reduce((totalInertia, point) => {
+                    const centroid = centroids[point.cluster];
+                    if (centroid) {
+                        const distance = calculateDistance(point, centroid);
+                        return totalInertia + Math.pow(distance, 2);
+                    }
+                    return totalInertia;
+                }, 0);
+            };
+
+            // Verificar convergência
+            const checkConvergence = (oldCentroids, newCentroids, tolerance = 1) => {
+                for (let i = 0; i < oldCentroids.length; i++) {
+                    const distance = calculateDistance(oldCentroids[i], newCentroids[i]);
+                    if (distance > tolerance) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            // Uma iteração do K-Means
+            const kmensStep = async () => {
+                if (centroids.length === 0) {
+                    alert('Primeiro inicialize os centroides!');
+                    return false;
+                }
+
+                setCurrentStep('Atribuindo pontos aos clusters...');
+                await new Promise(resolve => setTimeout(resolve, animationSpeed));
+
+                // Passo 1: Atribuir pontos aos centroides mais próximos
+                const assignedPoints = assignPointsToCentroids();
+                setPoints(assignedPoints);
+
+                // Calcular inércia
+                const currentInertia = calculateInertia(assignedPoints);
+                setInertia(currentInertia);
+
+                setCurrentStep('Atualizando posições dos centroides...');
+                await new Promise(resolve => setTimeout(resolve, animationSpeed));
+
+                // Passo 2: Atualizar centroides
+                const oldCentroids = [...centroids];
+                const newCentroids = updateCentroids(assignedPoints);
+                setCentroids(newCentroids);
+
+                // Verificar convergência
+                const converged = checkConvergence(oldCentroids, newCentroids);
+                
+                if (converged) {
+                    setHasConverged(true);
+                    setCurrentStep('Algoritmo convergiu! Os centroides não se movem mais significativamente.');
+                    return false;
+                }
+
+                setCurrentIteration(prev => prev + 1);
+                
+                if (currentIteration >= maxIterations - 1) {
+                    setCurrentStep('Número máximo de iterações atingido.');
+                    return false;
+                }
+
+                setCurrentStep(`Iteração ${currentIteration + 1} concluída. Continuando...`);
+                return true;
+            };
+
+            // Executar K-Means completo
+            const runKMeans = async () => {
+                if (centroids.length === 0) {
+                    alert('Primeiro inicialize os centroides!');
+                    return;
+                }
+
+                setIsRunning(true);
+                setHasConverged(false);
+                setCurrentIteration(0);
+
+                let shouldContinue = true;
+                while (shouldContinue && currentIteration < maxIterations) {
+                    shouldContinue = await kmensStep();
+                }
+
+                setIsRunning(false);
+            };
+
+            // Reset
+            const reset = () => {
+                setPoints([]);
+                setCentroids([]);
+                setCurrentIteration(0);
+                setHasConverged(false);
+                setCurrentStep('Clique em "Gerar Pontos" para começar.');
+                setInertia(0);
+            };
+
+            // Adicionar ponto no clique
+            const handleCanvasClick = (event) => {
+                if (isRunning) return;
+
+                const canvas = canvasRef.current;
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+
+                const newPoint = { x, y, cluster: -1 };
+                setPoints(prev => [...prev, newPoint]);
+                setCurrentStep('Ponto adicionado. Continue adicionando ou inicie o algoritmo.');
+            };
+
+            // Desenhar no canvas
+            const draw = () => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+                // Desenhar pontos
+                points.forEach(point => {
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
+                    ctx.fillStyle = point.cluster >= 0 ? colors[point.cluster % colors.length] : '#95a5a6';
+                    ctx.fill();
+                    ctx.strokeStyle = '#2c3e50';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                });
+
+                // Desenhar centroides
+                centroids.forEach((centroid, index) => {
+                    // Centroide atual
+                    ctx.beginPath();
+                    ctx.arc(centroid.x, centroid.y, 12, 0, 2 * Math.PI);
+                    ctx.fillStyle = colors[index % colors.length];
+                    ctx.fill();
+                    ctx.strokeStyle = '#2c3e50';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    // X no centro
+                    ctx.beginPath();
+                    ctx.moveTo(centroid.x - 6, centroid.y - 6);
+                    ctx.lineTo(centroid.x + 6, centroid.y + 6);
+                    ctx.moveTo(centroid.x + 6, centroid.y - 6);
+                    ctx.lineTo(centroid.x - 6, centroid.y + 6);
+                    ctx.strokeStyle = '#2c3e50';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Posição anterior (seta)
+                    if (centroid.prevX !== 0 || centroid.prevY !== 0) {
+                        ctx.beginPath();
+                        ctx.moveTo(centroid.prevX, centroid.prevY);
+                        ctx.lineTo(centroid.x, centroid.y);
+                        ctx.strokeStyle = '#e74c3c';
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([5, 5]);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        // Seta
+                        const angle = Math.atan2(centroid.y - centroid.prevY, centroid.x - centroid.prevX);
+                        ctx.beginPath();
+                        ctx.moveTo(centroid.x, centroid.y);
+                        ctx.lineTo(centroid.x - 10 * Math.cos(angle - Math.PI / 6), centroid.y - 10 * Math.sin(angle - Math.PI / 6));
+                        ctx.moveTo(centroid.x, centroid.y);
+                        ctx.lineTo(centroid.x - 10 * Math.cos(angle + Math.PI / 6), centroid.y - 10 * Math.sin(angle + Math.PI / 6));
+                        ctx.strokeStyle = '#e74c3c';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                });
+            };
+
+            useEffect(() => {
+                draw();
+            }, [points, centroids]);
+
+            useEffect(() => {
+                generateRandomPoints();
+            }, []);
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>K-Means Clustering</h1>
+                        <p>Visualização Interativa do Algoritmo de Agrupamento K-Means</p>
+                    </div>
+                    
+                    <div className="content">
+                        <div className="controls">
+                            <div className="control-group">
+                                <label>Número de Clusters (k):</label>
+                                <input 
+                                    type="number" 
+                                    min="1" 
+                                    max="8" 
+                                    value={k} 
+                                    onChange={(e) => setK(parseInt(e.target.value))}
+                                    disabled={isRunning}
+                                />
+                            </div>
+                            
+                            <div className="control-group">
+                                <label>Máximo de Iterações:</label>
+                                <input 
+                                    type="number" 
+                                    min="1" 
+                                    max="500" 
+                                    value={maxIterations} 
+                                    onChange={(e) => setMaxIterations(parseInt(e.target.value))}
+                                    disabled={isRunning}
+                                />
+                            </div>
+                            
+                            <div className="control-group">
+                                <label>Velocidade da Animação (ms):</label>
+                                <input 
+                                    type="range" 
+                                    min="100" 
+                                    max="2000" 
+                                    value={animationSpeed} 
+                                    onChange={(e) => setAnimationSpeed(parseInt(e.target.value))}
+                                    disabled={isRunning}
+                                />
+                                <span>{animationSpeed}ms</span>
+                            </div>
+
+                            <div className="button-group">
+                                <button 
+                                    className="btn-primary" 
+                                    onClick={() => generateRandomPoints(100)}
+                                    disabled={isRunning}
+                                >
+                                    Gerar Pontos
+                                </button>
+                                
+                                <button 
+                                    className="btn-secondary" 
+                                    onClick={initializeCentroids}
+                                    disabled={isRunning || points.length === 0}
+                                >
+                                    Inicializar Centroides
+                                </button>
+                                
+                                <button 
+                                    className="btn-success" 
+                                    onClick={runKMeans}
+                                    disabled={isRunning || centroids.length === 0}
+                                >
+                                    {isRunning ? 'Executando...' : 'Executar K-Means'}
+                                </button>
+                                
+                                <button 
+                                    className="btn-secondary" 
+                                    onClick={kmensStep}
+                                    disabled={isRunning || centroids.length === 0 || hasConverged}
+                                >
+                                    Passo a Passo
+                                </button>
+                                
+                                <button 
+                                    className="btn-danger" 
+                                    onClick={reset}
+                                    disabled={isRunning}
+                                >
+                                    Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="canvas-container">
+                            <canvas
+                                ref={canvasRef}
+                                width={canvasWidth}
+                                height={canvasHeight}
+                                onClick={handleCanvasClick}
+                            />
+                            <p><em>Clique no canvas para adicionar pontos manualmente</em></p>
+                        </div>
+
+                        <div className="info-panel">
+                            <h3>Informações do Algoritmo</h3>
+                            
+                            <div className="stats">
+                                <div className="stat-card">
+                                    <div className="stat-value">{points.length}</div>
+                                    <div className="stat-label">Pontos Totais</div>
+                                </div>
+                                
+                                <div className="stat-card">
+                                    <div className="stat-value">{centroids.length}</div>
+                                    <div className="stat-label">Centroides</div>
+                                </div>
+                                
+                                <div className="stat-card">
+                                    <div className="stat-value">{currentIteration}</div>
+                                    <div className="stat-label">Iteração Atual</div>
+                                </div>
+                                
+                                <div className="stat-card">
+                                    <div className="stat-value">{inertia.toFixed(2)}</div>
+                                    <div className="stat-label">Inércia (WCSS)</div>
+                                </div>
+                            </div>
+
+                            <div className="algorithm-steps">
+                                <h4>Como Funciona o K-Means:</h4>
+                                <ol>
+                                    <li>Escolha o número de clusters (k)</li>
+                                    <li>Inicialize k centroides aleatoriamente</li>
+                                    <li>Atribua cada ponto ao centroide mais próximo</li>
+                                    <li>Recalcule a posição dos centroides como a média dos pontos atribuídos</li>
+                                    <li>Repita os passos 3-4 até a convergência</li>
+                                </ol>
+                                
+                                {currentStep && (
+                                    <div className="current-step">
+                                        Status atual: {currentStep}
+                                    </div>
+                                )}
+                            </div>
+
+                            {hasConverged && (
+                                <div className="convergence-info">
+                                    <h4>✅ Convergência Alcançada!</h4>
+                                    <p>O algoritmo convergiu após {currentIteration} iterações. Os centroides não se movem mais significativamente.</p>
+                                    <p><strong>Inércia final:</strong> {inertia.toFixed(2)} (menor é melhor)</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<KMeansVisualization />, document.getElementById('root'));
+    </script>
+</body>
+</html>
