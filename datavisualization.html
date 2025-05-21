@@ -4,654 +4,817 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visualizador de Dataset - IA Projects</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/react@17.0.2/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .panel {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        select, input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .slider-container {
+            margin-top: 5px;
+        }
+        .slider-value {
+            text-align: center;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #3182ce;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        canvas {
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        .equation {
+            background-color: #ebf8ff;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .equation h3 {
+            font-size: 14px;
+            color: #2b6cb0;
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+        .equation-text {
+            font-family: monospace;
+            text-align: center;
+        }
+        .info-box {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .info-box h2 {
+            font-size: 18px;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .info-box p {
+            font-size: 14px;
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+        .sub-panel {
+            padding-left: 15px;
+            padding-top: 8px;
+        }
+        .divider {
+            border-top: 1px solid #e2e8f0;
+            margin: 12px 0;
+        }
+        .flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .epochs-counter {
+            font-size: 14px;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div id="root" class="container mx-auto py-8 px-4"></div>
-
-    <script type="text/babel">
-        // React do DatasetVisualizer
-      import React, { useState, useEffect, useRef } from 'react';
-import _ from 'lodash';
-
-const DatasetVisualizer = () => {
-  const [dataset, setDataset] = useState('iris');
-  const [features, setFeatures] = useState(['comprimento_sepala', 'largura_sepala']);
-  const [showHyperplane, setShowHyperplane] = useState(false);
-  const [weights, setWeights] = useState({ w1: 1, w2: -1, b: 0 });
-  const [learningRate, setLearningRate] = useState(0.01);
-  const [epochs, setEpochs] = useState(0);
-  const [isTraining, setIsTraining] = useState(false);
-  const [trainedEpochs, setTrainedEpochs] = useState(0);
-  const canvasRef = useRef(null);
-  
-  // Datasets
-  const datasets = {
-    iris: {
-      title: 'Dataset Iris',
-      features: ['comprimento_sepala', 'largura_sepala', 'comprimento_petala', 'largura_petala'],
-      classes: ['setosa', 'versicolor'],
-      colors: ['#FF5733', '#33A8FF'],
-      data: [
-        { comprimento_sepala: 5.1, largura_sepala: 3.5, comprimento_petala: 1.4, largura_petala: 0.2, classe: 'setosa' },
-        { comprimento_sepala: 4.9, largura_sepala: 3.0, comprimento_petala: 1.4, largura_petala: 0.2, classe: 'setosa' },
-        { comprimento_sepala: 4.7, largura_sepala: 3.2, comprimento_petala: 1.3, largura_petala: 0.2, classe: 'setosa' },
-        { comprimento_sepala: 4.6, largura_sepala: 3.1, comprimento_petala: 1.5, largura_petala: 0.2, classe: 'setosa' },
-        { comprimento_sepala: 5.0, largura_sepala: 3.6, comprimento_petala: 1.4, largura_petala: 0.2, classe: 'setosa' },
-        { comprimento_sepala: 5.4, largura_sepala: 3.9, comprimento_petala: 1.7, largura_petala: 0.4, classe: 'setosa' },
-        { comprimento_sepala: 4.6, largura_sepala: 3.4, comprimento_petala: 1.4, largura_petala: 0.3, classe: 'setosa' },
-        { comprimento_sepala: 5.0, largura_sepala: 3.4, comprimento_petala: 1.5, largura_petala: 0.2, classe: 'setosa' },
-        { comprimento_sepala: 4.4, largura_sepala: 2.9, comprimento_petala: 1.4, largura_petala: 0.2, classe: 'setosa' },
-        { comprimento_sepala: 4.9, largura_sepala: 3.1, comprimento_petala: 1.5, largura_petala: 0.1, classe: 'setosa' },
-        { comprimento_sepala: 7.0, largura_sepala: 3.2, comprimento_petala: 4.7, largura_petala: 1.4, classe: 'versicolor' },
-        { comprimento_sepala: 6.4, largura_sepala: 3.2, comprimento_petala: 4.5, largura_petala: 1.5, classe: 'versicolor' },
-        { comprimento_sepala: 6.9, largura_sepala: 3.1, comprimento_petala: 4.9, largura_petala: 1.5, classe: 'versicolor' },
-        { comprimento_sepala: 5.5, largura_sepala: 2.3, comprimento_petala: 4.0, largura_petala: 1.3, classe: 'versicolor' },
-        { comprimento_sepala: 6.5, largura_sepala: 2.8, comprimento_petala: 4.6, largura_petala: 1.5, classe: 'versicolor' },
-        { comprimento_sepala: 5.7, largura_sepala: 2.8, comprimento_petala: 4.5, largura_petala: 1.3, classe: 'versicolor' },
-        { comprimento_sepala: 6.3, largura_sepala: 3.3, comprimento_petala: 4.7, largura_petala: 1.6, classe: 'versicolor' },
-        { comprimento_sepala: 4.9, largura_sepala: 2.4, comprimento_petala: 3.3, largura_petala: 1.0, classe: 'versicolor' },
-        { comprimento_sepala: 6.6, largura_sepala: 2.9, comprimento_petala: 4.6, largura_petala: 1.3, classe: 'versicolor' },
-        { comprimento_sepala: 5.2, largura_sepala: 2.7, comprimento_petala: 3.9, largura_petala: 1.4, classe: 'versicolor' }
-      ]
-    },
-    animais: {
-      title: 'Dataset Animais',
-      features: ['tamanho', 'orelha_pontuda', 'bigode_espetado', 'rabo_comprido'],
-      classes: ['gato', 'cachorro'],
-      colors: ['#7D3C98', '#F1C40F'],
-      data: [
-        { tamanho: 0.3, orelha_pontuda: 0.9, bigode_espetado: 0.8, rabo_comprido: 0.7, classe: 'gato' },
-        { tamanho: 0.2, orelha_pontuda: 0.85, bigode_espetado: 0.9, rabo_comprido: 0.8, classe: 'gato' },
-        { tamanho: 0.25, orelha_pontuda: 0.9, bigode_espetado: 0.85, rabo_comprido: 0.75, classe: 'gato' },
-        { tamanho: 0.35, orelha_pontuda: 0.8, bigode_espetado: 0.7, rabo_comprido: 0.9, classe: 'gato' },
-        { tamanho: 0.28, orelha_pontuda: 0.95, bigode_espetado: 0.8, rabo_comprido: 0.6, classe: 'gato' },
-        { tamanho: 0.32, orelha_pontuda: 0.75, bigode_espetado: 0.85, rabo_comprido: 0.8, classe: 'gato' },
-        { tamanho: 0.26, orelha_pontuda: 0.9, bigode_espetado: 0.75, rabo_comprido: 0.7, classe: 'gato' },
-        { tamanho: 0.22, orelha_pontuda: 0.85, bigode_espetado: 0.9, rabo_comprido: 0.75, classe: 'gato' },
-        { tamanho: 0.3, orelha_pontuda: 0.8, bigode_espetado: 0.85, rabo_comprido: 0.85, classe: 'gato' },
-        { tamanho: 0.27, orelha_pontuda: 0.9, bigode_espetado: 0.8, rabo_comprido: 0.7, classe: 'gato' },
-        { tamanho: 0.7, orelha_pontuda: 0.3, bigode_espetado: 0.4, rabo_comprido: 0.6, classe: 'cachorro' },
-        { tamanho: 0.65, orelha_pontuda: 0.25, bigode_espetado: 0.3, rabo_comprido: 0.65, classe: 'cachorro' },
-        { tamanho: 0.8, orelha_pontuda: 0.4, bigode_espetado: 0.35, rabo_comprido: 0.5, classe: 'cachorro' },
-        { tamanho: 0.75, orelha_pontuda: 0.2, bigode_espetado: 0.25, rabo_comprido: 0.7, classe: 'cachorro' },
-        { tamanho: 0.6, orelha_pontuda: 0.3, bigode_espetado: 0.4, rabo_comprido: 0.6, classe: 'cachorro' },
-        { tamanho: 0.85, orelha_pontuda: 0.35, bigode_espetado: 0.3, rabo_comprido: 0.55, classe: 'cachorro' },
-        { tamanho: 0.7, orelha_pontuda: 0.25, bigode_espetado: 0.35, rabo_comprido: 0.65, classe: 'cachorro' },
-        { tamanho: 0.75, orelha_pontuda: 0.3, bigode_espetado: 0.4, rabo_comprido: 0.6, classe: 'cachorro' },
-        { tamanho: 0.65, orelha_pontuda: 0.4, bigode_espetado: 0.3, rabo_comprido: 0.7, classe: 'cachorro' },
-        { tamanho: 0.8, orelha_pontuda: 0.3, bigode_espetado: 0.35, rabo_comprido: 0.55, classe: 'cachorro' }
-      ]
-    }
-  };
-
-  // Efeito para atualizar features quando o dataset muda
-  useEffect(() => {
-    const datasetFeatures = datasets[dataset].features.slice(0, 4);
-    setFeatures([datasetFeatures[0], datasetFeatures[1]]);
-  }, [dataset]);
-
-  // Efeito para redesenhar o canvas quando necessário
-  useEffect(() => {
-    drawDataset();
-  }, [dataset, features, showHyperplane, weights, trainedEpochs]);
-
-  // Função para desenhar o dataset no canvas
-  const drawDataset = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    // Limpar canvas
-    ctx.clearRect(0, 0, width, height);
-    
-    // Obter dados do dataset atual
-    const currentDataset = datasets[dataset];
-    const data = currentDataset.data;
-    const colors = currentDataset.colors;
-    const classes = currentDataset.classes;
-    
-    // Obter valores máximos e mínimos para normalização
-    const feature1 = features[0];
-    const feature2 = features[1];
-    
-    const values1 = data.map(item => item[feature1]);
-    const values2 = data.map(item => item[feature2]);
-    
-    const min1 = Math.min(...values1);
-    const max1 = Math.max(...values1);
-    const min2 = Math.min(...values2);
-    const max2 = Math.max(...values2);
-    
-    // Margem para o canvas
-    const margin = 40;
-    
-    // Desenhar eixos
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    
-    // Eixo X
-    ctx.moveTo(margin, height - margin);
-    ctx.lineTo(width - margin, height - margin);
-    
-    // Eixo Y
-    ctx.moveTo(margin, height - margin);
-    ctx.lineTo(margin, margin);
-    
-    ctx.stroke();
-    
-    // Texto dos eixos
-    ctx.fillStyle = '#333';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-    
-    // Nome do eixo X
-    ctx.fillText(feature1, width / 2, height - 10);
-    
-    // Nome do eixo Y
-    ctx.save();
-    ctx.translate(15, height / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText(feature2, 0, 0);
-    ctx.restore();
-    
-    // Desenhar linhas de grade
-    ctx.strokeStyle = '#eee';
-    ctx.lineWidth = 0.5;
-    
-    // Linhas de grade horizontais
-    for (let i = 1; i <= 5; i++) {
-      const y = margin + (height - 2 * margin) * i / 5;
-      ctx.beginPath();
-      ctx.moveTo(margin, y);
-      ctx.lineTo(width - margin, y);
-      ctx.stroke();
-      
-      // Valores do eixo Y
-      const value2 = max2 - (max2 - min2) * i / 5;
-      ctx.fillText(value2.toFixed(1), margin - 15, y + 4);
-    }
-    
-    // Linhas de grade verticais
-    for (let i = 1; i <= 5; i++) {
-      const x = margin + (width - 2 * margin) * i / 5;
-      ctx.beginPath();
-      ctx.moveTo(x, margin);
-      ctx.lineTo(x, height - margin);
-      ctx.stroke();
-      
-      // Valores do eixo X
-      const value1 = min1 + (max1 - min1) * i / 5;
-      ctx.fillText(value1.toFixed(1), x, height - margin + 15);
-    }
-    
-    // Desenhar hiperplano se estiver ativado
-    if (showHyperplane) {
-      const w1 = weights.w1;
-      const w2 = weights.w2;
-      const b = weights.b;
-      
-      // Encontrar dois pontos na linha do hiperplano
-      // Equação: w1*x1 + w2*x2 + b = 0 => x2 = (-w1*x1 - b) / w2
-      
-      // Converter de coordenadas do dataset para coordenadas do canvas
-      const toCanvasX = (x) => margin + (x - min1) / (max1 - min1) * (width - 2 * margin);
-      const toCanvasY = (y) => height - margin - (y - min2) / (max2 - min2) * (height - 2 * margin);
-      
-      // Converter de coordenadas do canvas para coordenadas do dataset
-      const toDatasetX = (x) => min1 + (x - margin) / (width - 2 * margin) * (max1 - min1);
-      const toDatasetY = (y) => max2 - (y - margin) / (height - 2 * margin) * (max2 - min2);
-      
-      // Encontrar pontos do hiperplano nas bordas do gráfico
-      let x1, y1, x2, y2;
-      
-      if (Math.abs(w2) < 0.001) { // Linha vertical
-        const datasetX = -b / w1;
-        x1 = toCanvasX(datasetX);
-        y1 = margin;
-        x2 = toCanvasX(datasetX);
-        y2 = height - margin;
-      } else {
-        // Pontos nas bordas esquerda e direita
-        const leftX = toDatasetX(margin);
-        const rightX = toDatasetX(width - margin);
+<body>
+    <div class="container">
+        <h1>Visualizador de Dataset e Hiperplano</h1>
         
-        const leftY = (-w1 * leftX - b) / w2;
-        const rightY = (-w1 * rightX - b) / w2;
-        
-        const leftCanvasY = toCanvasY(leftY);
-        const rightCanvasY = toCanvasY(rightY);
-        
-        // Verificar se os pontos estão dentro dos limites do canvas
-        if (leftCanvasY >= margin && leftCanvasY <= height - margin &&
-            rightCanvasY >= margin && rightCanvasY <= height - margin) {
-          x1 = margin;
-          y1 = leftCanvasY;
-          x2 = width - margin;
-          y2 = rightCanvasY;
-        } else {
-          // Pontos nas bordas superior e inferior
-          const topY = toDatasetY(margin);
-          const bottomY = toDatasetY(height - margin);
-          
-          const topX = (-w2 * topY - b) / w1;
-          const bottomX = (-w2 * bottomY - b) / w1;
-          
-          const topCanvasX = toCanvasX(topX);
-          const bottomCanvasX = toCanvasX(bottomX);
-          
-          // Ajustar pontos para as interseções com as bordas
-          if (leftCanvasY < margin) {
-            x1 = topCanvasX;
-            y1 = margin;
-          } else if (leftCanvasY > height - margin) {
-            x1 = bottomCanvasX;
-            y1 = height - margin;
-          } else {
-            x1 = margin;
-            y1 = leftCanvasY;
-          }
-          
-          if (rightCanvasY < margin) {
-            x2 = topCanvasX;
-            y2 = margin;
-          } else if (rightCanvasY > height - margin) {
-            x2 = bottomCanvasX;
-            y2 = height - margin;
-          } else {
-            x2 = width - margin;
-            y2 = rightCanvasY;
-          }
-        }
-      }
-      
-      // Desenhar linha do hiperplano
-      ctx.strokeStyle = '#2ECC71';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 3]);
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      
-      // Desenhar uma área sombreada para indicar a separação
-      ctx.globalAlpha = 0.1;
-      
-      // Verificar um ponto para determinar o lado positivo
-      const testPoint = data.find(item => item.classe === classes[0]);
-      const testX = testPoint[feature1];
-      const testY = testPoint[feature2];
-      const testValue = w1 * testX + w2 * testY + b;
-      
-      // Se testValue > 0, o ponto da primeira classe está no lado positivo
-      const isFirstClassPositiveSide = testValue > 0;
-      
-      // Desenhar área para a primeira classe
-      ctx.fillStyle = colors[0];
-      ctx.beginPath();
-      
-      if (isFirstClassPositiveSide) {
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.lineTo(width - margin, margin);
-        ctx.lineTo(margin, margin);
-      } else {
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.lineTo(width - margin, height - margin);
-        ctx.lineTo(margin, height - margin);
-      }
-      
-      ctx.closePath();
-      ctx.fill();
-      
-      // Desenhar área para a segunda classe
-      ctx.fillStyle = colors[1];
-      ctx.beginPath();
-      
-      if (!isFirstClassPositiveSide) {
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.lineTo(width - margin, margin);
-        ctx.lineTo(margin, margin);
-      } else {
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.lineTo(width - margin, height - margin);
-        ctx.lineTo(margin, height - margin);
-      }
-      
-      ctx.closePath();
-      ctx.fill();
-      
-      ctx.globalAlpha = 1.0;
-    }
-    
-    // Desenhar pontos de dados
-    data.forEach(item => {
-      const x = item[feature1];
-      const y = item[feature2];
-      const classe = item.classe;
-      
-      // Normalizar coordenadas para o canvas
-      const canvasX = margin + (x - min1) / (max1 - min1) * (width - 2 * margin);
-      const canvasY = height - margin - (y - min2) / (max2 - min2) * (height - 2 * margin);
-      
-      // Desenhar círculo
-      ctx.fillStyle = colors[classes.indexOf(classe)];
-      ctx.beginPath();
-      ctx.arc(canvasX, canvasY, 6, 0, 2 * Math.PI);
-      ctx.fill();
-      
-      // Borda do círculo
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    });
-    
-    // Legenda
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'left';
-    
-    for (let i = 0; i < classes.length; i++) {
-      const y = margin + i * 25;
-      
-      // Círculo da legenda
-      ctx.fillStyle = colors[i];
-      ctx.beginPath();
-      ctx.arc(width - margin + 15, y, 6, 0, 2 * Math.PI);
-      ctx.fill();
-      
-      // Borda do círculo
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      
-      // Texto da legenda
-      ctx.fillStyle = '#333';
-      ctx.fillText(classes[i], width - margin + 30, y + 4);
-    }
-  };
-
-  // Função para treinar o perceptron
-  const trainPerceptron = () => {
-    if (isTraining) return;
-    
-    setIsTraining(true);
-    setTrainedEpochs(0);
-    
-    const currentDataset = datasets[dataset];
-    const data = currentDataset.data;
-    const classes = currentDataset.classes;
-    const feature1 = features[0];
-    const feature2 = features[1];
-    
-    // Inicializar pesos
-    let w1 = weights.w1;
-    let w2 = weights.w2;
-    let b = weights.b;
-    
-    // Função para treinar uma época
-    const trainEpoch = () => {
-      let hasError = false;
-      
-      // Embaralhar dados para treinamento
-      const shuffledData = _.shuffle(data);
-      
-      // Treinar com cada ponto de dado
-      shuffledData.forEach(item => {
-        const x1 = item[feature1];
-        const x2 = item[feature2];
-        const target = item.classe === classes[0] ? 1 : -1;
-        
-        // Calcular saída
-        const output = w1 * x1 + w2 * x2 + b > 0 ? 1 : -1;
-        
-        // Atualizar pesos se houver erro
-        if (output !== target) {
-          w1 += learningRate * target * x1;
-          w2 += learningRate * target * x2;
-          b += learningRate * target;
-          hasError = true;
-        }
-      });
-      
-      // Atualizar pesos
-      setWeights({ w1, w2, b });
-      
-      // Incrementar contador de épocas
-      setTrainedEpochs(prev => prev + 1);
-      
-      // Continuar treinamento se houver erro e não atingiu o limite de épocas
-      if (hasError && trainedEpochs < epochs - 1) {
-        setTimeout(trainEpoch, 100);
-      } else {
-        setIsTraining(false);
-      }
-    };
-    
-    // Iniciar treinamento
-    trainEpoch();
-  };
-
-  return (
-    <div className="flex flex-col items-center w-full max-w-6xl mx-auto p-4 bg-white rounded-lg shadow-md">
-      <h1 className="text-2xl font-bold text-center mb-4">Visualizador de Dataset e Hiperplano</h1>
-      
-      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Painel de configuração */}
-        <div className="md:col-span-1 bg-gray-50 p-4 rounded-lg">
-          <h2 className="text-xl font-semibold mb-3">Configurações</h2>
-          
-          {/* Seleção de dataset */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Dataset</label>
-            <select 
-              className="w-full p-2 border border-gray-300 rounded"
-              value={dataset}
-              onChange={(e) => setDataset(e.target.value)}
-            >
-              {Object.keys(datasets).map(key => (
-                <option key={key} value={key}>{datasets[key].title}</option>
-              ))}
-            </select>
-          </div>
-          
-          {/* Seleção de features */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Feature X</label>
-            <select 
-              className="w-full p-2 border border-gray-300 rounded mb-2"
-              value={features[0]}
-              onChange={(e) => setFeatures([e.target.value, features[1]])}
-            >
-              {datasets[dataset].features.map(feature => (
-                <option key={feature} value={feature}>{feature}</option>
-              ))}
-            </select>
-            
-            <label className="block text-sm font-medium text-gray-700 mb-1">Feature Y</label>
-            <select 
-              className="w-full p-2 border border-gray-300 rounded"
-              value={features[1]}
-              onChange={(e) => setFeatures([features[0], e.target.value])}
-            >
-              {datasets[dataset].features.map(feature => (
-                <option key={feature} value={feature}>{feature}</option>
-              ))}
-            </select>
-          </div>
-          
-          {/* Controle do hiperplano */}
-          <div className="mb-4">
-            <div className="flex items-center mb-2">
-              <input 
-                type="checkbox" 
-                id="showHyperplane" 
-                className="mr-2"
-                checked={showHyperplane}
-                onChange={(e) => setShowHyperplane(e.target.checked)}
-              />
-              <label htmlFor="showHyperplane" className="text-sm font-medium text-gray-700">
-                Mostrar Hiperplano
-              </label>
-            </div>
-            
-            {showHyperplane && (
-              <div className="pl-5 pt-2">
-                <div className="mb-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    w₁ (coef. da Feature X)
-                  </label>
-                  <input 
-                    type="range" 
-                    min="-5" 
-                    max="5" 
-                    step="0.1"
-                    value={weights.w1}
-                    onChange={(e) => setWeights({...weights, w1: parseFloat(e.target.value)})}
-                    className="w-full"
-                  />
-                  <div className="text-center">{weights.w1.toFixed(1)}</div>
-                </div>
+        <div class="grid">
+            <!-- Painel de configuração -->
+            <div class="panel">
+                <h2>Configurações</h2>
                 
-                <div className="mb-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    w₂ (coef. da Feature Y)
-                  </label>
-                  <input 
-                    type="range" 
-                    min="-5" 
-                    max="5" 
-                    step="0.1"
-                    value={weights.w2}
-                    onChange={(e) => setWeights({...weights, w2: parseFloat(e.target.value)})}
-                    className="w-full"
-                  />
-                  <div className="text-center">{weights.w2.toFixed(1)}</div>
-                </div>
-                
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    b (viés)
-                  </label>
-                  <input 
-                    type="range" 
-                    min="-5" 
-                    max="5" 
-                    step="0.1"
-                    value={weights.b}
-                    onChange={(e) => setWeights({...weights, b: parseFloat(e.target.value)})}
-                    className="w-full"
-                  />
-                  <div className="text-center">{weights.b.toFixed(1)}</div>
-                </div>
-                
-                <div className="border-t border-gray-200 pt-3">
-                  <div className="mb-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Taxa de Aprendizado
-                    </label>
-                    <select
-                      className="w-full p-2 border border-gray-300 rounded"
-                      value={learningRate}
-                      onChange={(e) => setLearningRate(parseFloat(e.target.value))}
-                    >
-                      <option value="0.001">0.001</option>
-                      <option value="0.01">0.01</option>
-                      <option value="0.05">0.05</option>
-                      <option value="0.1">0.1</option>
-                      <option value="0.5">0.5</option>
+                <div class="control-group">
+                    <label for="dataset">Dataset</label>
+                    <select id="dataset">
+                        <option value="iris">Dataset Iris</option>
+                        <option value="animais">Dataset Animais</option>
                     </select>
-                  </div>
-                  
-                  <div className="mb-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Número de Épocas
-                    </label>
-                    <input 
-                      type="number" 
-                      min="1" 
-                      max="1000"
-                      value={epochs}
-                      onChange={(e) => setEpochs(parseInt(e.target.value))}
-                      className="w-full p-2 border border-gray-300 rounded"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={trainPerceptron}
-                      disabled={isTraining}
-                      className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded disabled:opacity-50"
-                    >
-                      {isTraining ? 'Treinando...' : 'Treinar Perceptron'}
-                    </button>
+                </div>
+                
+                <div class="control-group">
+                    <label for="featureX">Feature X</label>
+                    <select id="featureX"></select>
                     
-                    <div className="text-sm">
-                      Épocas: {trainedEpochs}/{epochs}
+                    <label for="featureY">Feature Y</label>
+                    <select id="featureY"></select>
+                </div>
+                
+                <div class="control-group">
+                    <input type="checkbox" id="showHyperplane">
+                    <label for="showHyperplane" style="display: inline;">Mostrar Hiperplano</label>
+                    
+                    <div id="hyperplaneControls" style="display: none;" class="sub-panel">
+                        <div class="control-group">
+                            <label for="w1">w₁ (coef. da Feature X)</label>
+                            <input type="range" id="w1" min="-5" max="5" step="0.1" value="1">
+                            <div id="w1Value" class="slider-value">1.0</div>
+                        </div>
+                        
+                        <div class="control-group">
+                            <label for="w2">w₂ (coef. da Feature Y)</label>
+                            <input type="range" id="w2" min="-5" max="5" step="0.1" value="-1">
+                            <div id="w2Value" class="slider-value">-1.0</div>
+                        </div>
+                        
+                        <div class="control-group">
+                            <label for="b">b (viés)</label>
+                            <input type="range" id="b" min="-5" max="5" step="0.1" value="0">
+                            <div id="bValue" class="slider-value">0.0</div>
+                        </div>
+                        
+                        <div class="divider"></div>
+                        
+                        <div class="control-group">
+                            <label for="learningRate">Taxa de Aprendizado</label>
+                            <select id="learningRate">
+                                <option value="0.001">0.001</option>
+                                <option value="0.01" selected>0.01</option>
+                                <option value="0.05">0.05</option>
+                                <option value="0.1">0.1</option>
+                                <option value="0.5">0.5</option>
+                            </select>
+                        </div>
+                        
+                        <div class="control-group">
+                            <label for="epochs">Número de Épocas</label>
+                            <input type="number" id="epochs" min="1" max="1000" value="100">
+                        </div>
+                        
+                        <div class="flex">
+                            <button id="trainButton">Treinar Perceptron</button>
+                            <div id="epochsCounter" class="epochs-counter">Épocas: 0/100</div>
+                        </div>
                     </div>
-                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-          
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <h3 className="text-sm font-semibold text-blue-800 mb-2">Equação do Hiperplano:</h3>
-            <div className="text-center">
-              {showHyperplane && (
-                <div className="font-mono">
-                  {weights.w1.toFixed(2)} × {features[0]} {weights.w2 >= 0 ? '+' : ''} {weights.w2.toFixed(2)} × {features[1]} {weights.b >= 0 ? '+' : ''} {weights.b.toFixed(2)} = 0
+                
+                <div id="equationBox" class="equation" style="display: none;">
+                    <h3>Equação do Hiperplano:</h3>
+                    <div id="equation" class="equation-text"></div>
                 </div>
-              )}
             </div>
-          </div>
+            
+            <!-- Área de visualização -->
+            <div>
+                <canvas id="plotCanvas" width="600" height="450"></canvas>
+                
+                <div class="info-box">
+                    <h2>Sobre esta Visualização</h2>
+                    <p>
+                        Esta ferramenta permite visualizar como os dados de um dataset se distribuem em um espaço bidimensional 
+                        com base em duas características selecionadas.
+                    </p>
+                    <p>
+                        Você pode ajustar manualmente o hiperplano movendo os controles deslizantes ou usar o algoritmo de treinamento 
+                        do perceptron para encontrar um hiperplano que separe as classes automaticamente.
+                    </p>
+                    <p>
+                        Experimente diferentes combinações de características para ver como os dados se distribuem e como 
+                        o hiperplano consegue (ou não) separar as classes corretamente.
+                    </p>
+                </div>
+            </div>
         </div>
-        
-        {/* Área de visualização */}
-        <div className="md:col-span-2">
-          <canvas 
-            ref={canvasRef} 
-            width={600} 
-            height={450}
-            className="w-full h-auto border border-gray-300 rounded-lg bg-white"
-          ></canvas>
-          
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <h2 className="text-lg font-semibold mb-2">Sobre esta Visualização</h2>
-            <p className="text-sm text-gray-700 mb-2">
-              Esta ferramenta permite visualizar como os dados de um dataset se distribuem em um espaço bidimensional 
-              com base em duas características selecionadas.
-            </p>
-            <p className="text-sm text-gray-700 mb-2">
-              Você pode ajustar manualmente o hiperplano movendo os controles deslizantes ou usar o algoritmo de treinamento 
-              do perceptron para encontrar um hiperplano que separe as classes automaticamente.
-            </p>
-            <p className="text-sm text-gray-700">
-              Experimente diferentes combinações de características para ver como os dados se distribuem e como 
-              o hiperplano consegue (ou não) separar as classes corretamente.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
-  );
-};
 
-export default DatasetVisualizer;
-        
-        // Código para renderizar o componente
-        ReactDOM.render(<DatasetVisualizer />, document.getElementById('root'));
+    <script>
+        // Datasets
+        const datasets = {
+            iris: {
+                title: 'Dataset Iris',
+                features: ['comprimento_sepala', 'largura_sepala', 'comprimento_petala', 'largura_petala'],
+                classes: ['setosa', 'versicolor'],
+                colors: ['#FF5733', '#33A8FF'],
+                data: [
+                    { comprimento_sepala: 5.1, largura_sepala: 3.5, comprimento_petala: 1.4, largura_petala: 0.2, classe: 'setosa' },
+                    { comprimento_sepala: 4.9, largura_sepala: 3.0, comprimento_petala: 1.4, largura_petala: 0.2, classe: 'setosa' },
+                    { comprimento_sepala: 4.7, largura_sepala: 3.2, comprimento_petala: 1.3, largura_petala: 0.2, classe: 'setosa' },
+                    { comprimento_sepala: 4.6, largura_sepala: 3.1, comprimento_petala: 1.5, largura_petala: 0.2, classe: 'setosa' },
+                    { comprimento_sepala: 5.0, largura_sepala: 3.6, comprimento_petala: 1.4, largura_petala: 0.2, classe: 'setosa' },
+                    { comprimento_sepala: 5.4, largura_sepala: 3.9, comprimento_petala: 1.7, largura_petala: 0.4, classe: 'setosa' },
+                    { comprimento_sepala: 4.6, largura_sepala: 3.4, comprimento_petala: 1.4, largura_petala: 0.3, classe: 'setosa' },
+                    { comprimento_sepala: 5.0, largura_sepala: 3.4, comprimento_petala: 1.5, largura_petala: 0.2, classe: 'setosa' },
+                    { comprimento_sepala: 4.4, largura_sepala: 2.9, comprimento_petala: 1.4, largura_petala: 0.2, classe: 'setosa' },
+                    { comprimento_sepala: 4.9, largura_sepala: 3.1, comprimento_petala: 1.5, largura_petala: 0.1, classe: 'setosa' },
+                    { comprimento_sepala: 7.0, largura_sepala: 3.2, comprimento_petala: 4.7, largura_petala: 1.4, classe: 'versicolor' },
+                    { comprimento_sepala: 6.4, largura_sepala: 3.2, comprimento_petala: 4.5, largura_petala: 1.5, classe: 'versicolor' },
+                    { comprimento_sepala: 6.9, largura_sepala: 3.1, comprimento_petala: 4.9, largura_petala: 1.5, classe: 'versicolor' },
+                    { comprimento_sepala: 5.5, largura_sepala: 2.3, comprimento_petala: 4.0, largura_petala: 1.3, classe: 'versicolor' },
+                    { comprimento_sepala: 6.5, largura_sepala: 2.8, comprimento_petala: 4.6, largura_petala: 1.5, classe: 'versicolor' },
+                    { comprimento_sepala: 5.7, largura_sepala: 2.8, comprimento_petala: 4.5, largura_petala: 1.3, classe: 'versicolor' },
+                    { comprimento_sepala: 6.3, largura_sepala: 3.3, comprimento_petala: 4.7, largura_petala: 1.6, classe: 'versicolor' },
+                    { comprimento_sepala: 4.9, largura_sepala: 2.4, comprimento_petala: 3.3, largura_petala: 1.0, classe: 'versicolor' },
+                    { comprimento_sepala: 6.6, largura_sepala: 2.9, comprimento_petala: 4.6, largura_petala: 1.3, classe: 'versicolor' },
+                    { comprimento_sepala: 5.2, largura_sepala: 2.7, comprimento_petala: 3.9, largura_petala: 1.4, classe: 'versicolor' }
+                ]
+            },
+            animais: {
+                title: 'Dataset Animais',
+                features: ['tamanho', 'orelha_pontuda', 'bigode_espetado', 'rabo_comprido'],
+                classes: ['gato', 'cachorro'],
+                colors: ['#7D3C98', '#F1C40F'],
+                data: [
+                    { tamanho: 0.3, orelha_pontuda: 0.9, bigode_espetado: 0.8, rabo_comprido: 0.7, classe: 'gato' },
+                    { tamanho: 0.2, orelha_pontuda: 0.85, bigode_espetado: 0.9, rabo_comprido: 0.8, classe: 'gato' },
+                    { tamanho: 0.25, orelha_pontuda: 0.9, bigode_espetado: 0.85, rabo_comprido: 0.75, classe: 'gato' },
+                    { tamanho: 0.35, orelha_pontuda: 0.8, bigode_espetado: 0.7, rabo_comprido: 0.9, classe: 'gato' },
+                    { tamanho: 0.28, orelha_pontuda: 0.95, bigode_espetado: 0.8, rabo_comprido: 0.6, classe: 'gato' },
+                    { tamanho: 0.32, orelha_pontuda: 0.75, bigode_espetado: 0.85, rabo_comprido: 0.8, classe: 'gato' },
+                    { tamanho: 0.26, orelha_pontuda: 0.9, bigode_espetado: 0.75, rabo_comprido: 0.7, classe: 'gato' },
+                    { tamanho: 0.22, orelha_pontuda: 0.85, bigode_espetado: 0.9, rabo_comprido: 0.75, classe: 'gato' },
+                    { tamanho: 0.3, orelha_pontuda: 0.8, bigode_espetado: 0.85, rabo_comprido: 0.85, classe: 'gato' },
+                    { tamanho: 0.27, orelha_pontuda: 0.9, bigode_espetado: 0.8, rabo_comprido: 0.7, classe: 'gato' },
+                    { tamanho: 0.7, orelha_pontuda: 0.3, bigode_espetado: 0.4, rabo_comprido: 0.6, classe: 'cachorro' },
+                    { tamanho: 0.65, orelha_pontuda: 0.25, bigode_espetado: 0.3, rabo_comprido: 0.65, classe: 'cachorro' },
+                    { tamanho: 0.8, orelha_pontuda: 0.4, bigode_espetado: 0.35, rabo_comprido: 0.5, classe: 'cachorro' },
+                    { tamanho: 0.75, orelha_pontuda: 0.2, bigode_espetado: 0.25, rabo_comprido: 0.7, classe: 'cachorro' },
+                    { tamanho: 0.6, orelha_pontuda: 0.3, bigode_espetado: 0.4, rabo_comprido: 0.6, classe: 'cachorro' },
+                    { tamanho: 0.85, orelha_pontuda: 0.35, bigode_espetado: 0.3, rabo_comprido: 0.55, classe: 'cachorro' },
+                    { tamanho: 0.7, orelha_pontuda: 0.25, bigode_espetado: 0.35, rabo_comprido: 0.65, classe: 'cachorro' },
+                    { tamanho: 0.75, orelha_pontuda: 0.3, bigode_espetado: 0.4, rabo_comprido: 0.6, classe: 'cachorro' },
+                    { tamanho: 0.65, orelha_pontuda: 0.4, bigode_espetado: 0.3, rabo_comprido: 0.7, classe: 'cachorro' },
+                    { tamanho: 0.8, orelha_pontuda: 0.3, bigode_espetado: 0.35, rabo_comprido: 0.55, classe: 'cachorro' }
+                ]
+            }
+        };
+
+        // Estado atual
+        let currentState = {
+            dataset: 'iris',
+            features: ['comprimento_sepala', 'largura_sepala'],
+            showHyperplane: false,
+            weights: { w1: 1, w2: -1, b: 0 },
+            learningRate: 0.01,
+            epochs: 100,
+            isTraining: false,
+            trainedEpochs: 0
+        };
+
+        // Elementos DOM
+        const canvas = document.getElementById('plotCanvas');
+        const datasetSelect = document.getElementById('dataset');
+        const featureXSelect = document.getElementById('featureX');
+        const featureYSelect = document.getElementById('featureY');
+        const showHyperplaneCheckbox = document.getElementById('showHyperplane');
+        const hyperplaneControls = document.getElementById('hyperplaneControls');
+        const w1Slider = document.getElementById('w1');
+        const w2Slider = document.getElementById('w2');
+        const bSlider = document.getElementById('b');
+        const w1ValueDisplay = document.getElementById('w1Value');
+        const w2ValueDisplay = document.getElementById('w2Value');
+        const bValueDisplay = document.getElementById('bValue');
+        const learningRateSelect = document.getElementById('learningRate');
+        const epochsInput = document.getElementById('epochs');
+        const trainButton = document.getElementById('trainButton');
+        const epochsCounter = document.getElementById('epochsCounter');
+        const equationBox = document.getElementById('equationBox');
+        const equationDisplay = document.getElementById('equation');
+
+        // Função para preencher os selects de features
+        function populateFeatureSelects() {
+            const features = datasets[currentState.dataset].features;
+            
+            // Limpar os selects
+            featureXSelect.innerHTML = '';
+            featureYSelect.innerHTML = '';
+            
+            // Preencher as opções
+            features.forEach(feature => {
+                const optionX = document.createElement('option');
+                optionX.value = feature;
+                optionX.textContent = feature;
+                
+                const optionY = document.createElement('option');
+                optionY.value = feature;
+                optionY.textContent = feature;
+                
+                featureXSelect.appendChild(optionX);
+                featureYSelect.appendChild(optionY);
+            });
+            
+            // Definir valores padrão
+            featureXSelect.value = features[0];
+            featureYSelect.value = features[1];
+        }
+
+        // Função para atualizar a equação do hiperplano
+        function updateEquation() {
+            if (currentState.showHyperplane) {
+                const w1 = currentState.weights.w1.toFixed(2);
+                const w2 = currentState.weights.w2.toFixed(2);
+                const b = currentState.weights.b.toFixed(2);
+                const feature1 = currentState.features[0];
+                const feature2 = currentState.features[1];
+                
+                const w2Sign = currentState.weights.w2 >= 0 ? '+' : '';
+                const bSign = currentState.weights.b >= 0 ? '+' : '';
+                
+                equationDisplay.textContent = `${w1} × ${feature1} ${w2Sign} ${w2} × ${feature2} ${bSign} ${b} = 0`;
+                equationBox.style.display = 'block';
+            } else {
+                equationBox.style.display = 'none';
+            }
+        }
+
+        // Função para desenhar o dataset no canvas
+        function drawDataset() {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Limpar canvas
+            ctx.clearRect(0, 0, width, height);
+            
+            // Obter dados do dataset atual
+            const currentDataset = datasets[currentState.dataset];
+            const data = currentDataset.data;
+            const colors = currentDataset.colors;
+            const classes = currentDataset.classes;
+            
+            // Obter valores máximos e mínimos para normalização
+            const feature1 = currentState.features[0];
+            const feature2 = currentState.features[1];
+            
+            const values1 = data.map(item => item[feature1]);
+            const values2 = data.map(item => item[feature2]);
+            
+            const min1 = Math.min(...values1);
+            const max1 = Math.max(...values1);
+            const min2 = Math.min(...values2);
+            const max2 = Math.max(...values2);
+            
+            // Margem para o canvas
+            const margin = 40;
+            
+            // Desenhar eixos
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            
+            // Eixo X
+            ctx.moveTo(margin, height - margin);
+            ctx.lineTo(width - margin, height - margin);
+            
+            // Eixo Y
+            ctx.moveTo(margin, height - margin);
+            ctx.lineTo(margin, margin);
+            
+            ctx.stroke();
+            
+            // Texto dos eixos
+            ctx.fillStyle = '#333';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            
+            // Nome do eixo X
+            ctx.fillText(feature1, width / 2, height - 10);
+            
+            // Nome do eixo Y
+            ctx.save();
+            ctx.translate(15, height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText(feature2, 0, 0);
+            ctx.restore();
+            
+            // Desenhar linhas de grade
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 0.5;
+            
+            // Linhas de grade horizontais
+            for (let i = 1; i <= 5; i++) {
+                const y = margin + (height - 2 * margin) * i / 5;
+                ctx.beginPath();
+                ctx.moveTo(margin, y);
+                ctx.lineTo(width - margin, y);
+                ctx.stroke();
+                
+                // Valores do eixo Y
+                const value2 = max2 - (max2 - min2) * i / 5;
+                ctx.fillText(value2.toFixed(1), margin - 15, y + 4);
+            }
+            
+            // Linhas de grade verticais
+            for (let i = 1; i <= 5; i++) {
+                const x = margin + (width - 2 * margin) * i / 5;
+                ctx.beginPath();
+                ctx.moveTo(x, margin);
+                ctx.lineTo(x, height - margin);
+                ctx.stroke();
+                
+                // Valores do eixo X
+                const value1 = min1 + (max1 - min1) * i / 5;
+                ctx.fillText(value1.toFixed(1), x, height - margin + 15);
+            }
+            
+            // Desenhar hiperplano se estiver ativado
+            if (currentState.showHyperplane) {
+                const w1 = currentState.weights.w1;
+                const w2 = currentState.weights.w2;
+                const b = currentState.weights.b;
+                
+                // Funções para converter coordenadas
+                const toCanvasX = (x) => margin + (x - min1) / (max1 - min1) * (width - 2 * margin);
+                const toCanvasY = (y) => height - margin - (y - min2) / (max2 - min2) * (height - 2 * margin);
+                const toDatasetX = (x) => min1 + (x - margin) / (width - 2 * margin) * (max1 - min1);
+                const toDatasetY = (y) => max2 - (y - margin) / (height - 2 * margin) * (max2 - min2);
+                
+                // Encontrar pontos do hiperplano nas bordas do gráfico
+                let x1, y1, x2, y2;
+                
+                if (Math.abs(w2) < 0.001) { // Linha vertical
+                    const datasetX = -b / w1;
+                    x1 = toCanvasX(datasetX);
+                    y1 = margin;
+                    x2 = toCanvasX(datasetX);
+                    y2 = height - margin;
+                } else {
+                    // Pontos nas bordas esquerda e direita
+                    const leftX = toDatasetX(margin);
+                    const rightX = toDatasetX(width - margin);
+                    
+                    const leftY = (-w1 * leftX - b) / w2;
+                    const rightY = (-w1 * rightX - b) / w2;
+                    
+                    const leftCanvasY = toCanvasY(leftY);
+                    const rightCanvasY = toCanvasY(rightY);
+                    
+                    // Verificar se os pontos estão dentro dos limites do canvas
+                    if (leftCanvasY >= margin && leftCanvasY <= height - margin &&
+                        rightCanvasY >= margin && rightCanvasY <= height - margin) {
+                        x1 = margin;
+                        y1 = leftCanvasY;
+                        x2 = width - margin;
+                        y2 = rightCanvasY;
+                    } else {
+                        // Pontos nas bordas superior e inferior
+                        const topY = toDatasetY(margin);
+                        const bottomY = toDatasetY(height - margin);
+                        
+                        const topX = (-w2 * topY - b) / w1;
+                        const bottomX = (-w2 * bottomY - b) / w1;
+                        
+                        const topCanvasX = toCanvasX(topX);
+                        const bottomCanvasX = toCanvasX(bottomX);
+                        
+                        // Ajustar pontos para as interseções com as bordas
+                        if (leftCanvasY < margin) {
+                            x1 = topCanvasX;
+                            y1 = margin;
+                        } else if (leftCanvasY > height - margin) {
+                            x1 = bottomCanvasX;
+                            y1 = height - margin;
+                        } else {
+                            x1 = margin;
+                            y1 = leftCanvasY;
+                        }
+                        
+                        if (rightCanvasY < margin) {
+                            x2 = topCanvasX;
+                            y2 = margin;
+                        } else if (rightCanvasY > height - margin) {
+                            x2 = bottomCanvasX;
+                            y2 = height - margin;
+                        } else {
+                            x2 = width - margin;
+                            y2 = rightCanvasY;
+                        }
+                    }
+                }
+                
+                // Desenhar linha do hiperplano
+                ctx.strokeStyle = '#2ECC71';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 3]);
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Desenhar uma área sombreada para indicar a separação
+                ctx.globalAlpha = 0.1;
+                
+                // Verificar um ponto para determinar o lado positivo
+                const testPoint = data.find(item => item.classe === classes[0]);
+                const testX = testPoint[feature1];
+                const testY = testPoint[feature2];
+                const testValue = w1 * testX + w2 * testY + b;
+                
+                // Se testValue > 0, o ponto da primeira classe está no lado positivo
+                const isFirstClassPositiveSide = testValue > 0;
+                
+                // Desenhar área para a primeira classe
+                ctx.fillStyle = colors[0];
+                ctx.beginPath();
+                
+                if (isFirstClassPositiveSide) {
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(width - margin, height - margin);
+                    ctx.lineTo(margin, height - margin);
+                }
+                
+                ctx.closePath();
+                ctx.fill();
+                
+                // Desenhar área para a segunda classe
+                ctx.fillStyle = colors[1];
+                ctx.beginPath();
+                
+                if (!isFirstClassPositiveSide) {
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(width - margin, margin);
+                    ctx.lineTo(margin, margin);
+                } else {
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(width - margin, height - margin);
+                    ctx.lineTo(margin, height - margin);
+                }
+                
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.globalAlpha = 1.0;
+            }
+            
+            // Desenhar pontos de dados
+            data.forEach(item => {
+                const x = item[feature1];
+                const y = item[feature2];
+                const classe = item.classe;
+                
+                // Normalizar coordenadas para o canvas
+                const canvasX = margin + (x - min1) / (max1 - min1) * (width - 2 * margin);
+                const canvasY = height - margin - (y - min2) / (max2 - min2) * (height - 2 * margin);
+                
+                // Desenhar círculo
+                ctx.fillStyle = colors[classes.indexOf(classe)];
+                ctx.beginPath();
+                ctx.arc(canvasX, canvasY, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Borda do círculo
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+            
+            // Legenda
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'left';
+            
+            for (let i = 0; i < classes.length; i++) {
+                const y = margin + i * 25;
+                
+                // Círculo da legenda
+                ctx.fillStyle = colors[i];
+                ctx.beginPath();
+                ctx.arc(width - margin + 15, y, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Borda do círculo
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // Texto da legenda
+                ctx.fillStyle = '#333';
+                ctx.fillText(classes[i], width - margin + 30, y + 4);
+            }
+        }
+
+        // Função para embaralhar array (para treinamento)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Função para treinar o perceptron
+        function trainPerceptron() {
+            if (currentState.isTraining) return;
+            
+            currentState.isTraining = true;
+            currentState.trainedEpochs = 0;
+            
+            const currentDataset = datasets[currentState.dataset];
+            const data = currentDataset.data;
+            const classes = currentDataset.classes;
+            const feature1 = currentState.features[0];
+            const feature2 = currentState.features[1];
+            
+            // Inicializar pesos
+            let w1 = currentState.weights.w1;
+            let w2 = currentState.weights.w2;
+            let b = currentState.weights.b;
+            
+            // Atualizar display de épocas
+            updateEpochsCounter();
+            
+            // Desabilitar botão durante treinamento
+            trainButton.disabled = true;
+            trainButton.textContent = 'Treinando...';
+            
+            // Função para treinar uma época
+            function trainEpoch() {
+                let hasError = false;
+                
+                // Embaralhar dados para treinamento
+                const shuffledData = shuffleArray([...data]);
+                
+                // Treinar com cada ponto de dado
+                shuffledData.forEach(item => {
+                    const x1 = item[feature1];
+                    const x2 = item[feature2];
+                    const target = item.classe === classes[0] ? 1 : -1;
+                    
+                    // Calcular saída
+                    const output = w1 * x1 + w2 * x2 + b > 0 ? 1 : -1;
+                    
+                    // Atualizar pesos se houver erro
+                    if (output !== target) {
+                        w1 += currentState.learningRate * target * x1;
+                        w2 += currentState.learningRate * target * x2;
+                        b += currentState.learningRate * target;
+                        hasError = true;
+                    }
+                });
+                
+                // Atualizar pesos no estado
+                currentState.weights = { w1, w2, b };
+                
+                // Atualizar displays
+                w1ValueDisplay.textContent = w1.toFixed(1);
+                w2ValueDisplay.textContent = w2.toFixed(1);
+                bValueDisplay.textContent = b.toFixed(1);
+                
+                // Atualizar sliders
+                w1Slider.value = w1;
+                w2Slider.value = w2;
+                bSlider.value = b;
+                
+                // Incrementar contador de épocas
+                currentState.trainedEpochs++;
+                updateEpochsCounter();
+                
+                // Atualizar equação
+                updateEquation();
+                
+                // Redesenhar o dataset
+                drawDataset();
+                
+                // Continuar treinamento se houver erro e não atingiu o limite de épocas
+                if (hasError && currentState.trainedEpochs < currentState.epochs) {
+                    setTimeout(trainEpoch, 100);
+                } else {
+                    // Finalizar treinamento
+                    currentState.isTraining = false;
+                    trainButton.disabled = false;
+                    trainButton.textContent = 'Treinar Perceptron';
+                }
+            }
+            
+            // Iniciar treinamento
+            trainEpoch();
+        }
+
+        // Função para atualizar o contador de épocas
+        function updateEpochsCounter() {
+            epochsCounter.textContent = `Épocas: ${currentState.trainedEpochs}/${currentState.epochs}`;
+        }
+
+        // Event Listeners
+        datasetSelect.addEventListener('change', function() {
+            currentState.dataset = this.value;
+            populateFeatureSelects();
+            currentState.features = [featureXSelect.value, featureYSelect.value];
+            drawDataset();
+            updateEquation();
+        });
+
+        featureXSelect.addEventListener('change', function() {
+            currentState.features[0] = this.value;
+            drawDataset();
+            updateEquation();
+        });
+
+        featureYSelect.addEventListener('change', function() {
+            currentState.features[1] = this.value;
+            drawDataset();
+            updateEquation();
+        });
+
+        showHyperplaneCheckbox.addEventListener('change', function() {
+            currentState.showHyperplane = this.checked;
+            hyperplaneControls.style.display = this.checked ? 'block' : 'none';
+            drawDataset();
+            updateEquation();
+        });
+
+        w1Slider.addEventListener('input', function() {
+            currentState.weights.w1 = parseFloat(this.value);
+            w1ValueDisplay.textContent = currentState.weights.w1.toFixed(1);
+            drawDataset();
+            updateEquation();
+        });
+
+        w2Slider.addEventListener('input', function() {
+            currentState.weights.w2 = parseFloat(this.value);
+            w2ValueDisplay.textContent = currentState.weights.w2.toFixed(1);
+            drawDataset();
+            updateEquation();
+        });
+
+        bSlider.addEventListener('input', function() {
+            currentState.weights.b = parseFloat(this.value);
+            bValueDisplay.textContent = currentState.weights.b.toFixed(1);
+            drawDataset();
+            updateEquation();
+        });
+
+        learningRateSelect.addEventListener('change', function() {
+            currentState.learningRate = parseFloat(this.value);
+        });
+
+        epochsInput.addEventListener('change', function() {
+            currentState.epochs = parseInt(this.value);
+            updateEpochsCounter();
+        });
+
+        trainButton.addEventListener('click', trainPerceptron);
+
+        // Inicialização
+        populateFeatureSelects();
+        drawDataset();
+        updateEpochsCounter();
+
     </script>
 </body>
-</html>
+</html>, margin);
+                    ctx.lineTo(margin, margin);
+                } else {
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(width - margin
