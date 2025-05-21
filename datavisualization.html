@@ -1,4 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Dataset - IA Projects</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/react@17.0.2/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div id="root" class="container mx-auto py-8 px-4"></div>
+
+    <script type="text/babel">
+        // React do DatasetVisualizer
+      import React, { useState, useEffect, useRef } from 'react';
 import _ from 'lodash';
 
 const DatasetVisualizer = () => {
@@ -573,4 +590,68 @@ const DatasetVisualizer = () => {
                   
                   <div className="flex items-center justify-between">
                     <button
-                      onClick={train
+                      onClick={trainPerceptron}
+                      disabled={isTraining}
+                      className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded disabled:opacity-50"
+                    >
+                      {isTraining ? 'Treinando...' : 'Treinar Perceptron'}
+                    </button>
+                    
+                    <div className="text-sm">
+                      Épocas: {trainedEpochs}/{epochs}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <h3 className="text-sm font-semibold text-blue-800 mb-2">Equação do Hiperplano:</h3>
+            <div className="text-center">
+              {showHyperplane && (
+                <div className="font-mono">
+                  {weights.w1.toFixed(2)} × {features[0]} {weights.w2 >= 0 ? '+' : ''} {weights.w2.toFixed(2)} × {features[1]} {weights.b >= 0 ? '+' : ''} {weights.b.toFixed(2)} = 0
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* Área de visualização */}
+        <div className="md:col-span-2">
+          <canvas 
+            ref={canvasRef} 
+            width={600} 
+            height={450}
+            className="w-full h-auto border border-gray-300 rounded-lg bg-white"
+          ></canvas>
+          
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+            <h2 className="text-lg font-semibold mb-2">Sobre esta Visualização</h2>
+            <p className="text-sm text-gray-700 mb-2">
+              Esta ferramenta permite visualizar como os dados de um dataset se distribuem em um espaço bidimensional 
+              com base em duas características selecionadas.
+            </p>
+            <p className="text-sm text-gray-700 mb-2">
+              Você pode ajustar manualmente o hiperplano movendo os controles deslizantes ou usar o algoritmo de treinamento 
+              do perceptron para encontrar um hiperplano que separe as classes automaticamente.
+            </p>
+            <p className="text-sm text-gray-700">
+              Experimente diferentes combinações de características para ver como os dados se distribuem e como 
+              o hiperplano consegue (ou não) separar as classes corretamente.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DatasetVisualizer;
+        
+        // Código para renderizar o componente
+        ReactDOM.render(<DatasetVisualizer />, document.getElementById('root'));
+    </script>
+</body>
+</html>
