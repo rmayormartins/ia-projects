@@ -484,4 +484,330 @@
                 
                 if (Math.abs(w2) < 0.001) { // Linha vertical
                     const datasetX = -b / w1;
-                    x1 = toCanvasX(data
+                    x1 = toCanvasX(datasetX);
+                    y1 = margin;
+                    x2 = toCanvasX(datasetX);
+                    y2 = height - margin;
+                } else {
+                    // Pontos nas bordas esquerda e direita
+                    const leftX = toDatasetX(margin);
+                    const rightX = toDatasetX(width - margin);
+                    
+                    const leftY = (-w1 * leftX - b) / w2;
+                    const rightY = (-w1 * rightX - b) / w2;
+                    
+                    const leftCanvasY = toCanvasY(leftY);
+                    const rightCanvasY = toCanvasY(rightY);
+                    
+                    // Verificar se os pontos estão dentro dos limites do canvas
+                    if (leftCanvasY >= margin && leftCanvasY <= height - margin &&
+                        rightCanvasY >= margin && rightCanvasY <= height - margin) {
+                        x1 = margin;
+                        y1 = leftCanvasY;
+                        x2 = width - margin;
+                        y2 = rightCanvasY;
+                    } else {
+                        // Pontos nas bordas superior e inferior
+                        const topY = toDatasetY(margin);
+                        const bottomY = toDatasetY(height - margin);
+                        
+                        const topX = (-w2 * topY - b) / w1;
+                        const bottomX = (-w2 * bottomY - b) / w1;
+                        
+                        const topCanvasX = toCanvasX(topX);
+                        const bottomCanvasX = toCanvasX(bottomX);
+                        
+                        // Ajustar pontos para as interseções com as bordas
+                        if (leftCanvasY < margin) {
+                            x1 = topCanvasX;
+                            y1 = margin;
+                        } else if (leftCanvasY > height - margin) {
+                            x1 = bottomCanvasX;
+                            y1 = height - margin;
+                        } else {
+                            x1 = margin;
+                            y1 = leftCanvasY;
+                        }
+                        
+                        if (rightCanvasY < margin) {
+                            x2 = topCanvasX;
+                            y2 = margin;
+                        } else if (rightCanvasY > height - margin) {
+                            x2 = bottomCanvasX;
+                            y2 = height - margin;
+                        } else {
+                            x2 = width - margin;
+                            y2 = rightCanvasY;
+                        }
+                    }
+                }
+                
+                // Desenhar linha do hiperplano
+                ctx.strokeStyle = '#2ECC71';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 3]);
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Desenhar uma área sombreada para indicar a separação
+                ctx.globalAlpha = 0.1;
+                
+                // Verificar um ponto para determinar o lado positivo
+                const testPoint = data.find(item => item.classe === classes[0]);
+                const testX = testPoint[feature1];
+                const testY = testPoint[feature2];
+                const testValue = w1 * testX + w2 * testY + b;
+                
+                // Se testValue > 0, o ponto da primeira classe está no lado positivo
+                const isFirstClassPositiveSide = testValue > 0;
+                
+                // Desenhar área para a primeira classe
+                ctx.fillStyle = colors[0];
+                ctx.beginPath();
+                
+                if (isFirstClassPositiveSide) {
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(width - margin, margin);
+                    ctx.lineTo(margin, margin);
+                } else {
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(width - margin, height - margin);
+                    ctx.lineTo(margin, height - margin);
+                }
+                
+                ctx.closePath();
+                ctx.fill();
+                
+                // Desenhar área para a segunda classe
+                ctx.fillStyle = colors[1];
+                ctx.beginPath();
+                
+                if (!isFirstClassPositiveSide) {
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(width - margin, margin);
+                    ctx.lineTo(margin, margin);
+                } else {
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(width - margin, height - margin);
+                    ctx.lineTo(margin, height - margin);
+                }
+                
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.globalAlpha = 1.0;
+            }
+            
+            // Desenhar pontos de dados
+            data.forEach(item => {
+                const x = item[feature1];
+                const y = item[feature2];
+                const classe = item.classe;
+                
+                // Normalizar coordenadas para o canvas
+                const canvasX = margin + (x - min1) / (max1 - min1) * (width - 2 * margin);
+                const canvasY = height - margin - (y - min2) / (max2 - min2) * (height - 2 * margin);
+                
+                // Desenhar círculo
+                ctx.fillStyle = colors[classes.indexOf(classe)];
+                ctx.beginPath();
+                ctx.arc(canvasX, canvasY, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Borda do círculo
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+            
+            // Legenda
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'left';
+            
+            for (let i = 0; i < classes.length; i++) {
+                const y = margin + i * 25;
+                
+                // Círculo da legenda
+                ctx.fillStyle = colors[i];
+                ctx.beginPath();
+                ctx.arc(width - margin + 15, y, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Borda do círculo
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // Texto da legenda
+                ctx.fillStyle = '#333';
+                ctx.fillText(classes[i], width - margin + 30, y + 4);
+            }
+        }
+
+        // Função para treinar o perceptron
+        function trainPerceptron() {
+            if (currentState.isTraining) return;
+            
+            currentState.isTraining = true;
+            currentState.trainedEpochs = 0;
+            
+            const currentDataset = datasets[currentState.dataset];
+            const data = currentDataset.data;
+            const classes = currentDataset.classes;
+            const feature1 = currentState.features[0];
+            const feature2 = currentState.features[1];
+            
+            // Inicializar pesos
+            let w1 = currentState.weights.w1;
+            let w2 = currentState.weights.w2;
+            let b = currentState.weights.b;
+            
+            // Atualizar display de épocas
+            updateEpochsCounter();
+            
+            // Desabilitar botão durante treinamento
+            trainButton.disabled = true;
+            trainButton.textContent = 'Treinando...';
+            
+            // Função para treinar uma época
+            function trainEpoch() {
+                let hasError = false;
+                
+                // Embaralhar dados para treinamento
+                const shuffledData = shuffleArray(data);
+                
+                // Treinar com cada ponto de dado
+                shuffledData.forEach(item => {
+                    const x1 = item[feature1];
+                    const x2 = item[feature2];
+                    const target = item.classe === classes[0] ? 1 : -1;
+                    
+                    // Calcular saída
+                    const output = w1 * x1 + w2 * x2 + b > 0 ? 1 : -1;
+                    
+                    // Atualizar pesos se houver erro
+                    if (output !== target) {
+                        w1 += currentState.learningRate * target * x1;
+                        w2 += currentState.learningRate * target * x2;
+                        b += currentState.learningRate * target;
+                        hasError = true;
+                    }
+                });
+                
+                // Atualizar pesos no estado
+                currentState.weights = { w1, w2, b };
+                
+                // Atualizar displays
+                w1ValueDisplay.textContent = w1.toFixed(1);
+                w2ValueDisplay.textContent = w2.toFixed(1);
+                bValueDisplay.textContent = b.toFixed(1);
+                
+                // Atualizar sliders
+                w1Slider.value = w1;
+                w2Slider.value = w2;
+                bSlider.value = b;
+                
+                // Incrementar contador de épocas
+                currentState.trainedEpochs++;
+                updateEpochsCounter();
+                
+                // Atualizar equação
+                updateEquation();
+                
+                // Redesenhar o dataset
+                drawDataset();
+                
+                // Continuar treinamento se houver erro e não atingiu o limite de épocas
+                if (hasError && currentState.trainedEpochs < currentState.epochs) {
+                    setTimeout(trainEpoch, 100);
+                } else {
+                    // Finalizar treinamento
+                    currentState.isTraining = false;
+                    trainButton.disabled = false;
+                    trainButton.textContent = 'Treinar Perceptron';
+                }
+            }
+            
+            // Iniciar treinamento
+            trainEpoch();
+        }
+
+        // Função para atualizar o contador de épocas
+        function updateEpochsCounter() {
+            epochsCounter.textContent = `Épocas: ${currentState.trainedEpochs}/${currentState.epochs}`;
+        }
+
+        // Event Listeners
+        datasetSelect.addEventListener('change', function() {
+            currentState.dataset = this.value;
+            populateFeatureSelects();
+            currentState.features = [featureXSelect.value, featureYSelect.value];
+            drawDataset();
+            updateEquation();
+        });
+
+        featureXSelect.addEventListener('change', function() {
+            currentState.features[0] = this.value;
+            drawDataset();
+            updateEquation();
+        });
+
+        featureYSelect.addEventListener('change', function() {
+            currentState.features[1] = this.value;
+            drawDataset();
+            updateEquation();
+        });
+
+        showHyperplaneCheckbox.addEventListener('change', function() {
+            currentState.showHyperplane = this.checked;
+            hyperplaneControls.style.display = this.checked ? 'block' : 'none';
+            drawDataset();
+            updateEquation();
+        });
+
+        w1Slider.addEventListener('input', function() {
+            currentState.weights.w1 = parseFloat(this.value);
+            w1ValueDisplay.textContent = currentState.weights.w1.toFixed(1);
+            drawDataset();
+            updateEquation();
+        });
+
+        w2Slider.addEventListener('input', function() {
+            currentState.weights.w2 = parseFloat(this.value);
+            w2ValueDisplay.textContent = currentState.weights.w2.toFixed(1);
+            drawDataset();
+            updateEquation();
+        });
+
+        bSlider.addEventListener('input', function() {
+            currentState.weights.b = parseFloat(this.value);
+            bValueDisplay.textContent = currentState.weights.b.toFixed(1);
+            drawDataset();
+            updateEquation();
+        });
+
+        learningRateSelect.addEventListener('change', function() {
+            currentState.learningRate = parseFloat(this.value);
+        });
+
+        epochsInput.addEventListener('change', function() {
+            currentState.epochs = parseInt(this.value);
+            updateEpochsCounter();
+        });
+
+        trainButton.addEventListener('click', trainPerceptron);
+
+        // Inicialização
+        populateFeatureSelects();
+        drawDataset();
+        updateEpochsCounter();
+    </script>
+</body>
+</html>
