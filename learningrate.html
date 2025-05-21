@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning Rate Simulator - IFSC IA</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .controls {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .control-item label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9em;
+        }
+        
+        .control-item input, .control-item select {
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .control-item input:focus, .control-item select:focus {
+            outline: none;
+            border-color: #ff6b6b;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        
+        .visualization-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .plot-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e9ecef;
+        }
+        
+        .plot-title {
+            text-align: center;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .metrics-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .metric-title {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        
+        .metric-value {
+            font-size: 1.8em;
+            font-weight: 700;
+        }
+        
+        .info-panel {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .info-title {
+            font-weight: 600;
+            color: #0056b3;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .info-text {
+            color: #004085;
+            line-height: 1.6;
+        }
+        
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .btn-preset {
+            padding: 8px 16px;
+            border: 2px solid;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        
+        .btn-slow {
+            border-color: #28a745;
+            color: #28a745;
+        }
+        
+        .btn-slow:hover {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-optimal {
+            border-color: #17a2b8;
+            color: #17a2b8;
+        }
+        
+        .btn-optimal:hover {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-fast {
+            border-color: #ffc107;
+            color: #856404;
+        }
+        
+        .btn-fast:hover {
+            background: #ffc107;
+            color: #856404;
+        }
+        
+        .btn-unstable {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+        
+        .btn-unstable:hover {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-training {
+            background: #ffc107;
+            animation: pulse 1s infinite;
+        }
+        
+        .status-converged {
+            background: #28a745;
+        }
+        
+        .status-diverged {
+            background: #dc3545;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        @media (max-width: 768px) {
+            .visualization-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .button-group {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const LearningRateSimulator = () => {
+            const [learningRate, setLearningRate] = React.useState(0.1);
+            const [epochs, setEpochs] = React.useState(100);
+            const [isTraining, setIsTraining] = React.useState(false);
+            const [currentEpoch, setCurrentEpoch] = React.useState(0);
+            const [lossHistory, setLossHistory] = React.useState([]);
+            const [weightHistory, setWeightHistory] = React.useState([]);
+            const [currentWeight, setCurrentWeight] = React.useState(Math.random() * 4 - 2);
+            const [targetWeight, setTargetWeight] = React.useState(1.5);
+            const [status, setStatus] = React.useState('ready');
+            
+            // Função de perda quadrática simples: (w - target)²
+            const lossFunction = (w) => Math.pow(w - targetWeight, 2);
+            
+            // Gradiente da função de perda: 2 * (w - target)
+            const gradient = (w) => 2 * (w - targetWeight);
+            
+            const resetSimulation = () => {
+                setCurrentEpoch(0);
+                setLossHistory([]);
+                setWeightHistory([]);
+                setCurrentWeight(Math.random() * 4 - 2);
+                setStatus('ready');
+                setIsTraining(false);
+            };
+            
+            const startTraining = async () => {
+                setIsTraining(true);
+                setStatus('training');
+                
+                let weight = currentWeight;
+                const newLossHistory = [];
+                const newWeightHistory = [];
+                
+                for (let epoch = 0; epoch < epochs; epoch++) {
+                    const loss = lossFunction(weight);
+                    const grad = gradient(weight);
+                    
+                    newLossHistory.push(loss);
+                    newWeightHistory.push(weight);
+                    
+                    // Atualização do peso
+                    weight = weight - learningRate * grad;
+                    
+                    setCurrentEpoch(epoch + 1);
+                    setCurrentWeight(weight);
+                    setLossHistory([...newLossHistory]);
+                    setWeightHistory([...newWeightHistory]);
+                    
+                    // Verificar convergência ou divergência
+                    if (loss < 0.001) {
+                        setStatus('converged');
+                        break;
+                    } else if (loss > 100 || isNaN(loss)) {
+                        setStatus('diverged');
+                        break;
+                    }
+                    
+                    // Delay para visualização
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                setIsTraining(false);
+                if (status === 'training') {
+                    setStatus('completed');
+                }
+            };
+            
+            const setPreset = (type) => {
+                resetSimulation();
+                switch(type) {
+                    case 'slow':
+                        setLearningRate(0.01);
+                        setEpochs(200);
+                        break;
+                    case 'optimal':
+                        setLearningRate(0.1);
+                        setEpochs(100);
+                        break;
+                    case 'fast':
+                        setLearningRate(0.8);
+                        setEpochs(50);
+                        break;
+                    case 'unstable':
+                        setLearningRate(1.5);
+                        setEpochs(30);
+                        break;
+                }
+            };
+            
+            // Plotar função de perda
+            React.useEffect(() => {
+                const weights = [];
+                const losses = [];
+                for (let w = -3; w <= 5; w += 0.1) {
+                    weights.push(w);
+                    losses.push(lossFunction(w));
+                }
+                
+                const trace1 = {
+                    x: weights,
+                    y: losses,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Função de Perda',
+                    line: { color: '#667eea', width: 3 }
+                };
+                
+                const trace2 = {
+                    x: [currentWeight],
+                    y: [lossFunction(currentWeight)],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'Peso Atual',
+                    marker: { 
+                        color: '#ff6b6b', 
+                        size: 12,
+                        symbol: 'circle'
+                    }
+                };
+                
+                const trace3 = {
+                    x: [targetWeight],
+                    y: [0],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'Peso Ótimo',
+                    marker: { 
+                        color: '#28a745', 
+                        size: 12,
+                        symbol: 'star'
+                    }
+                };
+                
+                const layout = {
+                    title: 'Superfície da Função de Perda',
+                    xaxis: { title: 'Peso (w)' },
+                    yaxis: { title: 'Perda' },
+                    showlegend: true,
+                    margin: { t: 50, r: 50, b: 50, l: 50 }
+                };
+                
+                Plotly.newPlot('loss-surface', [trace1, trace2, trace3], layout, {responsive: true});
+            }, [currentWeight, targetWeight]);
+            
+            // Plotar histórico de treinamento
+            React.useEffect(() => {
+                if (lossHistory.length > 0) {
+                    const epochs_array = Array.from({length: lossHistory.length}, (_, i) => i);
+                    
+                    const trace1 = {
+                        x: epochs_array,
+                        y: lossHistory,
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'Perda',
+                        line: { color: '#ff6b6b', width: 2 },
+                        marker: { size: 4 }
+                    };
+                    
+                    const layout = {
+                        title: 'Convergência do Treinamento',
+                        xaxis: { title: 'Época' },
+                        yaxis: { title: 'Perda', type: 'log' },
+                        showlegend: false,
+                        margin: { t: 50, r: 50, b: 50, l: 50 }
+                    };
+                    
+                    Plotly.newPlot('training-history', [trace1], layout, {responsive: true});
+                }
+            }, [lossHistory]);
+            
+            const getStatusInfo = () => {
+                switch(status) {
+                    case 'training':
+                        return { text: 'Treinando...', class: 'status-training' };
+                    case 'converged':
+                        return { text: 'Convergiu!', class: 'status-converged' };
+                    case 'diverged':
+                        return { text: 'Divergiu!', class: 'status-diverged' };
+                    case 'completed':
+                        return { text: 'Concluído', class: 'status-converged' };
+                    default:
+                        return { text: 'Pronto', class: 'status-converged' };
+                }
+            };
+            
+            const statusInfo = getStatusInfo();
+            
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>⚡ Learning Rate Simulator</h1>
+                        <p>Explore como diferentes learning rates afetam a convergência do treinamento</p>
+                    </div>
+                    
+                    <div className="content">
+                        <div className="info-panel">
+                            <div className="info-title">📚 Como Funciona</div>
+                            <div className="info-text">
+                                Esta simulação mostra como o <strong>learning rate</strong> controla o tamanho dos passos durante o treinamento. 
+                                Observe como valores diferentes afetam a velocidade de convergência e a estabilidade do algoritmo.
+                                <br/><br/>
+                                <strong>Learning Rate Baixo:</strong> Convergência lenta mas estável<br/>
+                                <strong>Learning Rate Ótimo:</strong> Convergência rápida e estável<br/>
+                                <strong>Learning Rate Alto:</strong> Pode oscilar ou divergir
+                            </div>
+                        </div>
+                        
+                        <div className="controls">
+                            <div className="control-group">
+                                <div className="control-item">
+                                    <label>Learning Rate</label>
+                                    <input 
+                                        type="number" 
+                                        value={learningRate} 
+                                        onChange={(e) => setLearningRate(parseFloat(e.target.value))}
+                                        step="0.01"
+                                        min="0.001"
+                                        max="2"
+                                        disabled={isTraining}
+                                    />
+                                </div>
+                                
+                                <div className="control-item">
+                                    <label>Épocas Máximas</label>
+                                    <input 
+                                        type="number" 
+                                        value={epochs} 
+                                        onChange={(e) => setEpochs(parseInt(e.target.value))}
+                                        min="10"
+                                        max="500"
+                                        disabled={isTraining}
+                                    />
+                                </div>
+                                
+                                <div className="control-item">
+                                    <label>Peso Alvo</label>
+                                    <input 
+                                        type="number" 
+                                        value={targetWeight} 
+                                        onChange={(e) => setTargetWeight(parseFloat(e.target.value))}
+                                        step="0.1"
+                                        min="-3"
+                                        max="5"
+                                        disabled={isTraining}
+                                    />
+                                </div>
+                                
+                                <div className="control-item">
+                                    <label>Status</label>
+                                    <div>
+                                        <span className={`status-indicator ${statusInfo.class}`}></span>
+                                        {statusInfo.text}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="preset-buttons">
+                                <button className="btn-preset btn-slow" onClick={() => setPreset('slow')}>
+                                    🐢 Lento (0.01)
+                                </button>
+                                <button className="btn-preset btn-optimal" onClick={() => setPreset('optimal')}>
+                                    ⚡ Ótimo (0.1)
+                                </button>
+                                <button className="btn-preset btn-fast" onClick={() => setPreset('fast')}>
+                                    🚀 Rápido (0.8)
+                                </button>
+                                <button className="btn-preset btn-unstable" onClick={() => setPreset('unstable')}>
+                                    ⚠️ Instável (1.5)
+                                </button>
+                            </div>
+                            
+                            <div className="button-group">
+                                <button 
+                                    className="btn btn-primary" 
+                                    onClick={startTraining}
+                                    disabled={isTraining}
+                                >
+                                    {isTraining ? '🔄 Treinando...' : '🚀 Iniciar Treinamento'}
+                                </button>
+                                
+                                <button 
+                                    className="btn btn-secondary" 
+                                    onClick={resetSimulation}
+                                    disabled={isTraining}
+                                >
+                                    🔄 Resetar
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="metrics-container">
+                            <div className="metric-card">
+                                <div className="metric-title">Época Atual</div>
+                                <div className="metric-value">{currentEpoch}</div>
+                            </div>
+                            
+                            <div className="metric-card">
+                                <div className="metric-title">Peso Atual</div>
+                                <div className="metric-value">{currentWeight.toFixed(4)}</div>
+                            </div>
+                            
+                            <div className="metric-card">
+                                <div className="metric-title">Perda Atual</div>
+                                <div className="metric-value">{lossFunction(currentWeight).toFixed(4)}</div>
+                            </div>
+                            
+                            <div className="metric-card">
+                                <div className="metric-title">Distância do Ótimo</div>
+                                <div className="metric-value">{Math.abs(currentWeight - targetWeight).toFixed(4)}</div>
+                            </div>
+                        </div>
+                        
+                        <div className="visualization-container">
+                            <div className="plot-container">
+                                <div className="plot-title">Superfície da Função de Perda</div>
+                                <div id="loss-surface" style={{height: '400px'}}></div>
+                            </div>
+                            
+                            <div className="plot-container">
+                                <div className="plot-title">Histórico de Convergência</div>
+                                <div id="training-history" style={{height: '400px'}}></div>
+                            </div>
+                        </div>
+                        
+                        <div className="info-panel">
+                            <div className="info-title">🎯 Dicas de Experimentação</div>
+                            <div className="info-text">
+                                • <strong>Teste diferentes valores:</strong> Compare como learning rates de 0.01, 0.1, 0.5 e 1.0 se comportam<br/>
+                                • <strong>Observe a oscilação:</strong> Learning rates altos podem causar oscilação ao redor do mínimo<br/>
+                                • <strong>Velocidade vs Estabilidade:</strong> Encontre o equilíbrio entre convergência rápida e estável<br/>
+                                • <strong>Divergência:</strong> Learning rates muito altos podem fazer o algoritmo divergir
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<LearningRateSimulator />, document.getElementById('root'));
+    </script>
+</body>
+</html>
