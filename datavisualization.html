@@ -79,9 +79,12 @@
         }
         canvas {
             width: 100%;
+            max-width: 500px;
             border: 1px solid #ddd;
             border-radius: 8px;
             background-color: white;
+            margin: 0 auto;
+            display: block;
         }
         .equation {
             background-color: #ebf8ff;
@@ -214,7 +217,7 @@
             
             <!-- Área de visualização -->
             <div>
-                <canvas id="plotCanvas" width="600" height="450"></canvas>
+                <canvas id="plotCanvas" width="500" height="375"></canvas>
                 
                 <div class="info-box">
                     <h2>Sobre esta Visualização</h2>
